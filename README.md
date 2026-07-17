@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-2.4.0-7c5cff?style=for-the-badge)](./CHANGELOG-FORK.md)
+[![Version](https://img.shields.io/badge/version-2.5.0-7c5cff?style=for-the-badge)](./CHANGELOG-FORK.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-LGPL--2.1-0E7C86?style=for-the-badge)](./LICENSE)
 [![Interface](https://img.shields.io/badge/interface-Web%20%2B%20CLI-111827?style=for-the-badge)](#-快速開始)
@@ -77,8 +77,11 @@
 
 ```text
 .
-├── start.py                 # Web UI + 本機安全代理
-├── hlwy-ai-checker.html     # 前端介面
+├── start.py                 # Web UI static server + 本機安全代理
+├── web/                     # Vite + React Web UI（Apple Design）
+│   ├── src/
+│   └── dist/                # npm run build 產物（需建置）
+├── hlwy-ai-checker.html     # 舊版單檔 UI（僅在未建置 web/dist 時後援）
 ├── hlwy_check.py            # CLI 入口
 ├── hlwy_checker/            # 協議、客戶端、評分、基準包
 ├── baselines/official/      # 預置 / 匯出基準包
@@ -100,6 +103,12 @@ git clone https://github.com/Yat-mo/tracemark.git
 cd tracemark
 git checkout improve/v2.3-hardening
 python3 -m pip install -r requirements.txt
+
+# Web UI（需要 Node.js 18+）
+cd web
+npm ci
+npm run build
+cd ..
 ```
 
 #### 啟動 Web UI
@@ -112,6 +121,18 @@ python3 start.py --no-open
 
 ```text
 http://127.0.0.1:8000
+```
+
+> `start.py` 會優先服務 `web/dist`。若尚未建置前端，會回退到舊版 `hlwy-ai-checker.html` 或顯示建置說明。
+
+開發模式（可選）：
+
+```bash
+# 終端 1：代理
+python3 start.py --no-open
+
+# 終端 2：前端 HMR（會 proxy API 到 8000）
+cd web && npm run dev
 ```
 
 常用參數：
@@ -305,8 +326,11 @@ Use it when you want to know:
 
 ```text
 .
-├── start.py                 # Web UI + hardened local proxy
-├── hlwy-ai-checker.html     # frontend
+├── start.py                 # static server + hardened local proxy
+├── web/                     # Vite + React Web UI (Apple Design)
+│   ├── src/
+│   └── dist/                # build output from npm run build
+├── hlwy-ai-checker.html     # legacy single-file UI (fallback only)
 ├── hlwy_check.py            # CLI entry
 ├── hlwy_checker/            # protocol, client, scoring, packs
 ├── baselines/official/      # preset / exported packs
@@ -328,6 +352,12 @@ git clone https://github.com/Yat-mo/tracemark.git
 cd tracemark
 git checkout improve/v2.3-hardening
 python3 -m pip install -r requirements.txt
+
+# Web UI (Node.js 18+)
+cd web
+npm ci
+npm run build
+cd ..
 ```
 
 #### Web UI
@@ -335,6 +365,18 @@ python3 -m pip install -r requirements.txt
 ```bash
 python3 start.py --no-open
 # open http://127.0.0.1:8000
+```
+
+`start.py` prefers `web/dist`. If the frontend is not built, it falls back to legacy `hlwy-ai-checker.html` or shows build instructions.
+
+Dev mode (optional):
+
+```bash
+# terminal 1
+python3 start.py --no-open
+
+# terminal 2
+cd web && npm run dev
 ```
 
 Useful flags:

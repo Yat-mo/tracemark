@@ -3,6 +3,23 @@
 Repo: https://github.com/Yat-mo/tracemark  
 Inspired by: https://github.com/hanlinwenyuan/hlwy-ai-checker
 
+## v2.5.0 — Apple Design Web UI redesign
+
+### Web
+- Rebuild front end as Vite + React + TypeScript under `web/`
+- System-tool shell: translucent toolbar, segmented control, grouped sections
+- Traditional Chinese primary UI + English subtitles
+- Light/dark theme follows system, with manual override
+- Domain logic extracted to pure modules with Vitest coverage
+- `start.py` serves `web/dist` static assets + existing proxy/baselines/health
+- Legacy `hlwy-ai-checker.html` remains as fallback only when `web/dist` is missing
+
+### Build
+```bash
+cd web && npm ci && npm run build
+python3 start.py --no-open
+```
+
 ## v2.4.0 — TraceMark branding + headless CLI + baseline packs
 
 ### Brand

@@ -1,0 +1,126 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'PingFang TC',
+    'Noto Sans TC',
+    'Microsoft JhengHei',
+    sans-serif;
+  background: var(--bg);
+  color: var(--label-primary);
+  line-height: 1.5;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a {
+  color: var(--accent-text);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+p {
+  margin: 0;
+}
+
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+    radial-gradient(900px 420px at 100% 0%, color-mix(in srgb, var(--chart-2-border) 10%, transparent), transparent 55%),
+    var(--bg);
+}
+
+.app-content {
+  width: min(100% - 32px, var(--content-max));
+  margin: 0 auto;
+  padding: calc(var(--toolbar-height) + 28px) 0 64px;
+}
+
+.page-title {
+  font-size: clamp(1.5rem, 2vw, 1.85rem);
+  margin-bottom: 6px;
+}
+
+.page-subtitle {
+  color: var(--label-secondary);
+  font-size: 0.98rem;
+  margin-bottom: var(--space-5);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+@media (max-width: 720px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+  .app-content {
+    width: min(100% - 20px, var(--content-max));
+    padding-top: calc(var(--toolbar-height) + 18px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

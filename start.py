@@ -92,7 +92,7 @@ ALLOWED_API_SUFFIXES = (
 
 MAX_BODY_BYTES = 256 * 1024
 DEFAULT_TIMEOUT = 60
-VERSION = '2.4.0'
+VERSION = '2.5.0'
 
 # 创建全局 Session，清除默认头，避免泄漏 python-requests 指纹
 _session = req_lib.Session()
@@ -210,11 +210,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        """处理 GET 请求 - 提供 HTML 文件和静态资源"""
+        """处理 GET 请求 - 提供 Web UI 与静态资源"""
         path = self.path.split('?', 1)[0]
-        if path in ('/', '/index.html'):
-            self.serve_html()
-        elif path == '/health':
+        if path == '/health':
             self.send_json_response(200, {
                 'ok': True,
                 'version': VERSION,
@@ -226,7 +224,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
         elif path.startswith('/baselines/'):
             self.serve_baseline_file(path)
         else:
-            self.send_error(404, 'File not found')
+            self.serve_web_static(path)
 
     def do_POST(self):
         """处理 POST 请求 - 代理 API 调用"""
@@ -236,11 +234,120 @@ class ProxyHandler(BaseHTTPRequestHandler):
         else:
             self.send_error(404, 'Endpoint not found')
 
-    def _html_path(self) -> str:
+    def _web_dist_dir(self) -> str:
+        return os.path.join(CONFIG['root_dir'], 'web', 'dist')
+
+    def _legacy_html_path(self) -> str:
         return os.path.join(CONFIG['root_dir'], 'hlwy-ai-checker.html')
 
     def _baselines_root(self) -> str:
         return os.path.join(CONFIG['root_dir'], 'baselines')
+
+    def _content_type_for(self, file_path: str) -> str:
+        lower = file_path.lower()
+        if lower.endswith('.html'):
+            return 'text/html; charset=utf-8'
+        if lower.endswith('.js'):
+            return 'application/javascript; charset=utf-8'
+        if lower.endswith('.css'):
+            return 'text/css; charset=utf-8'
+        if lower.endswith('.json'):
+            return 'application/json; charset=utf-8'
+        if lower.endswith('.svg'):
+            return 'image/svg+xml'
+        if lower.endswith('.png'):
+            return 'image/png'
+        if lower.endswith('.jpg') or lower.endswith('.jpeg'):
+            return 'image/jpeg'
+        if lower.endswith('.webp'):
+            return 'image/webp'
+        if lower.endswith('.woff'):
+            return 'font/woff'
+        if lower.endswith('.woff2'):
+            return 'font/woff2'
+        if lower.endswith('.map'):
+            return 'application/json; charset=utf-8'
+        return 'application/octet-stream'
+
+    def _send_bytes(self, status: int, body: bytes, content_type: str) -> None:
+        self.send_response(status)
+        self.send_header('Content-Type', content_type)
+        self.send_header('Content-Length', str(len(body)))
+        self.send_cors_headers()
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _missing_web_ui_page(self) -> bytes:
+        page = f"""<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TraceMark · Web UI 未建置</title>
+  <style>
+    body {{ font-family: system-ui, sans-serif; background:#f2f2f7; color:#1c1c1e; margin:0; padding:40px 20px; }}
+    .card {{ max-width:640px; margin:0 auto; background:#fff; border-radius:18px; padding:28px; box-shadow:0 10px 30px rgba(0,0,0,.08); }}
+    code {{ display:block; background:#111; color:#f5f5f7; padding:12px 14px; border-radius:10px; margin:12px 0; }}
+    p {{ line-height:1.6; color:#444; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>找不到建置後的 Web UI</h1>
+    <p>TraceMark v{VERSION} 需要先建置 <code style="display:inline;padding:2px 6px;">web/dist</code>。</p>
+    <p>在專案根目錄執行：</p>
+    <code>cd web && npm ci && npm run build</code>
+    <p>完成後再啟動：</p>
+    <code>python3 start.py --no-open</code>
+  </div>
+</body>
+</html>
+"""
+        return page.encode('utf-8')
+
+    def serve_web_static(self, url_path: str) -> None:
+        """Serve Vite build output with SPA fallback to index.html."""
+        dist = self._web_dist_dir()
+        if not os.path.isdir(dist):
+            # Migration fallback: legacy single-file UI if still present.
+            legacy = self._legacy_html_path()
+            if os.path.isfile(legacy) and url_path in ('/', '/index.html'):
+                with open(legacy, 'rb') as f:
+                    body = f.read()
+                self._send_bytes(200, body, 'text/html; charset=utf-8')
+                return
+            self._send_bytes(503, self._missing_web_ui_page(), 'text/html; charset=utf-8')
+            return
+
+        rel = url_path.lstrip('/') or 'index.html'
+        if '..' in rel.split('/'):
+            self.send_error(400, 'invalid path')
+            return
+
+        candidate = os.path.normpath(os.path.join(dist, rel))
+        dist_norm = os.path.normpath(dist)
+        if not candidate.startswith(dist_norm + os.sep) and candidate != dist_norm:
+            self.send_error(400, 'invalid path')
+            return
+
+        if os.path.isdir(candidate):
+            candidate = os.path.join(candidate, 'index.html')
+
+        if os.path.isfile(candidate):
+            with open(candidate, 'rb') as f:
+                body = f.read()
+            self._send_bytes(200, body, self._content_type_for(candidate))
+            return
+
+        # SPA fallback for client routes
+        index_path = os.path.join(dist, 'index.html')
+        if os.path.isfile(index_path) and '.' not in os.path.basename(url_path):
+            with open(index_path, 'rb') as f:
+                body = f.read()
+            self._send_bytes(200, body, 'text/html; charset=utf-8')
+            return
+
+        self.send_error(404, 'File not found')
 
     def serve_baseline_index(self):
         root = os.path.join(self._baselines_root(), 'official')
@@ -292,22 +399,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
         except FileNotFoundError:
             self.send_error(404, 'baseline not found')
-
-    def serve_html(self):
-        """返回 HTML 文件"""
-        try:
-            with open(self._html_path(), 'r', encoding='utf-8') as f:
-                content = f.read()
-
-            body = content.encode('utf-8')
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/html; charset=utf-8')
-            self.send_header('Content-Length', str(len(body)))
-            self.send_cors_headers()
-            self.end_headers()
-            self.wfile.write(body)
-        except FileNotFoundError:
-            self.send_error(404, 'hlwy-ai-checker.html not found')
 
     def proxy_api_request(self):
         """代理 API 请求到真实的 API 端点"""
@@ -430,10 +521,12 @@ def main(argv=None):
     args = parse_args(argv)
 
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    html_path = os.path.join(root_dir, 'hlwy-ai-checker.html')
-    if not os.path.exists(html_path):
-        print('错误: 找不到 hlwy-ai-checker.html 文件')
-        print(f'期望路径: {html_path}')
+    dist_dir = os.path.join(root_dir, 'web', 'dist')
+    legacy_html = os.path.join(root_dir, 'hlwy-ai-checker.html')
+    if not os.path.isdir(dist_dir) and not os.path.isfile(legacy_html):
+        print('错误: 找不到 Web UI 建置产物 web/dist，也没有旧版 hlwy-ai-checker.html')
+        print('请先执行: cd web && npm ci && npm run build')
+        print(f'期望路径: {dist_dir}')
         return 1
 
     CONFIG['root_dir'] = root_dir
@@ -447,6 +540,7 @@ def main(argv=None):
     server = ThreadingHTTPServer((host, port), ProxyHandler)
     url = f'http://{host}:{port}'
     allow_desc = 'any public host' if CONFIG['allow_any_public'] else ', '.join(sorted(CONFIG['allow_hosts']))
+    ui_src = 'web/dist' if os.path.isdir(dist_dir) else 'legacy hlwy-ai-checker.html'
     print(f"""
 ╔════════════════════════════════════════════════════════╗
 ║           TraceMark v{VERSION}  ·  模型行為指紋探測           ║
@@ -454,6 +548,7 @@ def main(argv=None):
 repo: https://github.com/Yat-mo/tracemark
 
 🌐 UI:      {url}
+📦 source:  {ui_src}
 🔒 bind:    {host}:{port}
 🛡️  targets: {allow_desc}
 ⏱  timeout: {CONFIG['timeout']}s
