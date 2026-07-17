@@ -1,41 +1,41 @@
+<div align="center">
+
 # hlwy-ai-checker
 
-<p align="center">
-  <strong>AI API 指紋檢測器 / Model Fingerprinting Checker</strong><br>
-  <em>檢查第三方 AI API 是否摻假、渠道是否一致</em><br>
-  <em>Detect third-party AI API substitution and channel consistency</em>
-</p>
+### AI API 指紋檢測 · Model Fingerprinting
 
-<p align="center">
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white">
-  <img alt="License" src="https://img.shields.io/badge/License-LGPL--2.1-blue">
-  <img alt="Version" src="https://img.shields.io/badge/version-2.4.0-7c5cff">
-  <img alt="UI" src="https://img.shields.io/badge/UI-Web%20%2B%20CLI-2ea44f">
-</p>
+**檢查第三方 AI 渠道是否像它宣稱的模型**  
+**Check whether a third-party AI channel behaves like the model it claims**
 
-<p align="center">
-  <a href="#繁體中文">繁體中文</a> ·
-  <a href="#english">English</a> ·
-  <a href="./CHANGELOG-FORK.md">Changelog</a> ·
-  <a href="./baselines/README.md">Baseline Packs</a>
-</p>
+<br>
+
+[![Version](https://img.shields.io/badge/version-2.4.0-7c5cff?style=for-the-badge)](./CHANGELOG-FORK.md)
+[![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-LGPL--2.1-0E7C86?style=for-the-badge)](./LICENSE)
+[![Interface](https://img.shields.io/badge/interface-Web%20%2B%20CLI-111827?style=for-the-badge)](#-快速開始--quick-start)
+
+<br>
+
+[繁體中文](#-繁體中文) · [English](#-english) · [Changelog](./CHANGELOG-FORK.md) · [Baseline Packs](./baselines/README.md)
+
+<br>
+
+```text
+  official model  ── calibrate ──►  fingerprint baseline
+                                         │
+  third-party API ── probe suite ────────┼── compare ──► match / drift / suspicion
+```
+
+</div>
 
 ---
 
-> **Fork 改進版 / Enhanced fork:** [Yat-mo/hlwy-ai-checker](https://github.com/Yat-mo/hlwy-ai-checker)  
-> **上游專案 / Upstream:** [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker)
+## 目錄 / Contents
 
-這個 fork 在原有 Web UI 基礎上，補上了：
-- 更安全的本機代理
-- 多探針協議與更嚴格的解析／評分
-- Headless CLI
-- 基準包（baseline pack）格式與預置 demo 包
-
-This fork builds on the original Web UI with:
-- a safer local proxy
-- multi-probe protocol + stricter parsing / scoring
-- a headless CLI
-- baseline pack format and demo packs
+| | |
+|---|---|
+| 繁中 | [概念](#這是什麼) · [能力](#核心能力) · [架構](#專案結構) · [開始](#-快速開始--quick-start) · [CLI](#headless-cli) · [基準包](#基準包) · [原理](#原理) · [安全](#安全與邊界) · [免責](#免責聲明) |
+| EN | [Idea](#what-it-is) · [Features](#core-features) · [Layout](#project-layout) · [Start](#-快速開始--quick-start) · [CLI](#headless-cli-1) · [Packs](#baseline-packs) · [Method](#how-it-works) · [Safety](#safety--limits) · [Disclaimer](#disclaimer) |
 
 ---
 
@@ -44,27 +44,51 @@ This fork builds on the original Web UI with:
 ### 這是什麼
 
 大語言模型不是真正的亂數產生器。  
-當模型被要求「隨機選一個數字」時，不同模型會因為訓練資料、架構、對齊方式與 tokenization 差異，表現出可重複的偏差分布。
+當你要求它「從 1 到 355 隨機選一個數字」時，不同模型會留下不同的統計偏差。
 
-`hlwy-ai-checker` 會：
+這些偏差在大量取樣後，會形成可比較的**行為指紋**。
 
-1. 先用**官方 API** 標定（calibrate）模型指紋  
-2. 再對**第三方渠道**重複相同探測  
-3. 以分布相似度判斷渠道是否像同一模型、是否有摻假嫌疑
+`hlwy-ai-checker` 用這件事做渠道驗證：
 
-### 為什麼有用
+1. 先對**官方 API** 標定基準指紋  
+2. 再用同一套探針測試**第三方渠道**  
+3. 比較分布、眾數、樣本品質，判斷是否像同一模型
 
-| 能力 | 說明 |
+它適合拿來回答這類問題：
+
+- 這個中轉是不是真的在跑它宣稱的模型？
+- 兩個渠道對同一模型的行為是否一致？
+- 有沒有明顯摻假、串路、或路由漂移的跡象？
+
+### 核心能力
+
+| 面向 | 內容 |
 | --- | --- |
-| 指紋區分度高 | 以統計分布比較模型行為，不只看單一回答 |
-| 成本低 | 單次請求只要求輸出一個數字，token 消耗很小 |
-| 可重複 | 固定探針與參數，便於橫向比較渠道 |
-| Web + CLI | 可用瀏覽器操作，也能腳本化批量測試 |
-| 可匯出證據 | 基準與結果可存成 JSON pack，方便存檔與分享 |
+| **Web UI** | 本機一頁式介面：標定、測試、基準管理、渠道橫評 |
+| **Headless CLI** | `calibrate` / `test` / `compare`，可進腳本與 CI |
+| **多探針協議** | `classic` 相容舊基準；`robust` 多探針更穩 |
+| **嚴格解析** | 只接受純整數輸出，減少髒樣本污染 |
+| **更穩評分** | 分布優先 + 眾數輔助 + 置信度 |
+| **基準包** | `hlwy-baseline-pack/v1`，可匯入、匯出、預置、分享 |
+| **本機安全代理** | 預設綁 `127.0.0.1`，含 SSRF 防護與請求限制 |
 
-### 快速開始
+### 專案結構
 
-#### 1. 安裝
+```text
+hlwy-ai-checker/
+├── start.py                 # Web UI + 本機安全代理
+├── hlwy-ai-checker.html     # 前端介面
+├── hlwy_check.py            # CLI 入口
+├── hlwy_checker/            # 協議、客戶端、評分、基準包
+├── baselines/official/      # 預置 / 匯出基準包
+├── tests/                   # 單元測試
+├── requirements.txt
+└── CHANGELOG-FORK.md
+```
+
+### ✨ 快速開始 / Quick Start
+
+#### 安裝
 
 ```bash
 git clone https://github.com/Yat-mo/hlwy-ai-checker.git
@@ -73,32 +97,43 @@ git checkout improve/v2.3-hardening
 python3 -m pip install -r requirements.txt
 ```
 
-#### 2. 啟動 Web UI
+#### 啟動 Web UI
 
 ```bash
 python3 start.py --no-open
-# 瀏覽器開啟 http://127.0.0.1:8000
+```
+
+然後開啟：
+
+```text
+http://127.0.0.1:8000
 ```
 
 常用參數：
 
 ```bash
-python3 start.py --host 127.0.0.1 --port 8000 --timeout 60 --no-open
-python3 start.py --allow-host api.openai.com --allow-host api.anthropic.com
+python3 start.py \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --timeout 60 \
+  --allow-host api.openai.com \
+  --allow-host api.anthropic.com \
+  --no-open
 ```
 
-#### 3. 建議操作流程
+#### 建議流程
 
-1. 選擇探針套件  
-   - **穩健多探針（robust）**：推薦  
-   - **經典單探針（classic）**：相容舊基準
-2. 用官方 key 建立基準  
-3. 用同一套件測試第三方渠道  
-4. 查看匹配度、眾數、JS 散度與置信度  
-5. 匯出結果或基準包
+```text
+選擇套件 → 官方 key 標定 → 匯出基準包 → 測試第三方 → 看匹配度 / 置信度
+```
 
-> 舊版基準（沒有 suite 中繼資料）只相容「經典單探針」。  
-> 要用新方法，請先用 robust 重新標定。
+| 套件 | 何時用 |
+| --- | --- |
+| `robust` | 預設推薦，多探針，抗噪更好 |
+| `classic` | 相容舊基準，或想最小化請求數 |
+
+> 舊基準（沒有 suite 中繼資料）只相容 `classic`。  
+> 要用新方法，請用 `robust` 重新標定。
 
 ### Headless CLI
 
@@ -109,7 +144,7 @@ python3 hlwy_check.py suites
 # 查看預置基準包
 python3 hlwy_check.py list-packs
 
-# 官方 key 標定並匯出 pack
+# 官方 API 標定
 export HLWY_API_KEY=sk-...
 python3 hlwy_check.py calibrate \
   --name "gpt-4o-official" \
@@ -120,7 +155,7 @@ python3 hlwy_check.py calibrate \
   --as-pack \
   -o baselines/official/gpt-4o-robust.json
 
-# 測試第三方渠道
+# 測試單一第三方渠道
 python3 hlwy_check.py test \
   --base-url https://third-party.example/v1 \
   --api-key sk-xxx \
@@ -140,14 +175,14 @@ python3 hlwy_check.py compare \
 ```json
 [
   {
-    "name": "中轉A",
+    "name": "relay-a",
     "api_type": "openai",
     "base_url": "https://a.example/v1",
     "api_key": "sk-a",
     "model": "gpt-4o"
   },
   {
-    "name": "中轉B",
+    "name": "relay-b",
     "api_type": "openai",
     "base_url": "https://b.example/v1",
     "api_key": "sk-b",
@@ -156,89 +191,75 @@ python3 hlwy_check.py compare \
 ]
 ```
 
-### 基準包（Baseline Pack）
+### 基準包
 
-預置包位於 [`baselines/official/`](./baselines/official/)：
+格式：`hlwy-baseline-pack/v1`
 
-- `demo-classic-pack.json`
-- `demo-robust-pack.json`
+預置位置：[`baselines/official/`](./baselines/official/)
 
-這些 demo 包是 **synthetic** 資料，只適合離線驗證 CLI / UI，**不是**真實官方指紋。
+| 檔案 | 說明 |
+| --- | --- |
+| `demo-classic-pack.json` | 離線 demo（classic） |
+| `demo-robust-pack.json` | 離線 demo（robust） |
 
-Web UI 的「基準管理」可：
+這些 demo 是 **synthetic** 資料，只供離線驗證 UI / CLI，**不是**真實官方指紋。
+
+Web UI 支援：
 
 - 匯入 pack / 基準陣列 / 單一基準
-- 一鍵載入預置基準包
-- 匯出為 `hlwy-baseline-pack/v1`
+- 一鍵載入預置包
+- 匯出為標準 pack
 
-詳細格式見：[baselines/README.md](./baselines/README.md)
+完整格式見：[baselines/README.md](./baselines/README.md)
 
-### 原理（簡述）
+### 原理
 
-LLM 被要求「隨機選數字」時，並不會真正均勻抽樣。  
-不同模型的偏差，在大量取樣後會形成可區分的統計指紋。
+```text
+probe prompt
+    │
+    ▼
+many samples ──► number distribution
+    │
+    ├─ cosine similarity
+    ├─ JS divergence
+    ├─ Hellinger distance
+    ├─ mode agreement
+    └─ sample quality
+            │
+            ▼
+      overall score + confidence
+```
 
-本工具會比較：
+重點不是「這次有沒有答對」，而是：
 
-- 分布相似度（cosine / JS divergence / Hellinger）
-- 眾數是否接近
-- 樣本品質（解析失敗率、傳輸失敗率）
+- 分布形狀像不像
+- 眾數有沒有漂
+- 有效樣本夠不夠乾淨
 
-結果用來判斷：
+### 安全與邊界
 
-- 這個渠道像不像官方同名模型
-- 多個中轉是否行為一致
-- 是否有明顯摻假或路由異常
-
-### 截圖
-
-#### 區分度
-
-<img width="1463" height="599" alt="fingerprint separation" src="https://github.com/user-attachments/assets/2081fd7c-040d-4512-aff3-755926d893e8" />
-
-<img width="1447" height="607" alt="match comparison" src="https://github.com/user-attachments/assets/0141405c-7d23-4cf0-bbe6-3e3b8a3e9fce" />
-
-#### 一致性
-
-<img width="1448" height="600" alt="consistency" src="https://github.com/user-attachments/assets/07b00a61-ee17-4d39-bb32-8e367d0d03cd" />
-
-#### 低 token 消耗
-
-<img width="1663" height="290" alt="low token usage" src="https://github.com/user-attachments/assets/64e1f1a3-0796-4477-a1c0-1f3b004fdf4d" />
-
-#### 標定後再測試
-
-<img width="1513" height="713" alt="calibrate then test" src="https://github.com/user-attachments/assets/2d2670b1-72ba-4cd1-9b5e-e3bf6a0d13b7" />
-
-#### 標定介面
-
-<img width="1354" height="852" alt="calibration UI" src="https://github.com/user-attachments/assets/67ff8592-dcf3-407c-9e12-57991447d016" />
-
-### 安全與相容性提醒
-
-- 本機代理預設綁定 `127.0.0.1`
+- 本機代理預設只綁 `127.0.0.1`
 - 會阻擋私網 / localhost 目標，降低 SSRF 風險
-- 建議只在本機使用，不要把代理直接暴露到公網
-- 舊基準只相容 classic 套件
-- 協議 `2.3.0` 與 `2.4.0` 的同套件基準可互相接受
-- demo pack 不可當作真實官方結果
+- 請勿把代理直接暴露到公網
+- 同一套件才能比較；跨套件會被拒絕
+- 結果是統計估計，不是司法鑑定
 
-### 開發與測試
+### 開發
 
 ```bash
 python3 -m unittest discover -s tests -v
+python3 hlwy_check.py gen-demo-packs
 ```
-
-更多變更說明：[CHANGELOG-FORK.md](./CHANGELOG-FORK.md)
 
 ### 免責聲明
 
 測試結果僅供參考。
 
-由於模型本身具有隨機性，且受網路波動、限流、中轉設定影響，本工具結果**不能**作為商業糾紛、退款或法律主張的唯一依據。
+模型取樣具有隨機性，中轉也可能限流、改寫、路由或混模。  
+本工具結果**不能**作為商業糾紛、退款或法律主張的唯一依據。
 
-本專案上游由 **hanlinwenyuan** 開發並在 [LINUX DO](https://linux.do/) 發布。  
-本 fork 僅提供開源改進與維護，不介入使用者與 API 提供商之間的商業爭議。
+上游概念來自 [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker)。  
+本倉庫是功能增強 fork，僅提供開源工具，不介入任何商業爭議。
 
 ---
 
@@ -246,28 +267,52 @@ python3 -m unittest discover -s tests -v
 
 ### What it is
 
-Large language models are not true random number generators.  
-When asked to “pick a random number,” different models leave different statistical biases because of training data, architecture, alignment, and tokenization.
+Large language models are not true RNGs.  
+Ask them to pick a “random” integer and different models leave different statistical biases.
 
-`hlwy-ai-checker` works like this:
+After enough samples, those biases become a **behavioral fingerprint**.
 
-1. **Calibrate** a fingerprint against an official API  
-2. **Replay** the same probe suite against a third-party channel  
-3. **Compare** the resulting distributions to estimate whether the channel behaves like the claimed model
+`hlwy-ai-checker` uses that fingerprint to audit channels:
 
-### Why it helps
+1. **Calibrate** against an official API  
+2. **Probe** a third-party channel with the same suite  
+3. **Compare** distribution, mode, and sample quality
 
-| Strength | Description |
+Use it when you want to know:
+
+- does this relay behave like the claimed model?
+- do two channels look consistent?
+- is there a strong sign of substitution or routing drift?
+
+### Core features
+
+| Area | What you get |
 | --- | --- |
-| High separation | Compares distributions, not one-off answers |
-| Low token cost | Each request only asks for a single number |
-| Reproducible | Fixed probes and parameters enable fair comparison |
-| Web + CLI | Works in a browser and in automation scripts |
-| Evidence export | Baselines and results can be saved as JSON packs |
+| **Web UI** | Local one-page flow for calibrate / test / baseline management / multi-channel ranking |
+| **Headless CLI** | `calibrate`, `test`, `compare` for scripts and automation |
+| **Probe suites** | `classic` for legacy baselines; `robust` multi-probe suite by default |
+| **Strict parsing** | Accepts pure integers only, reducing contaminated samples |
+| **Better scoring** | Distribution-first scoring with mode assist and confidence |
+| **Baseline packs** | Portable `hlwy-baseline-pack/v1` format |
+| **Safer local proxy** | Binds to `127.0.0.1` by default, with SSRF guards and request limits |
+
+### Project layout
+
+```text
+hlwy-ai-checker/
+├── start.py                 # Web UI + hardened local proxy
+├── hlwy-ai-checker.html     # frontend
+├── hlwy_check.py            # CLI entry
+├── hlwy_checker/            # protocol, client, scoring, packs
+├── baselines/official/      # preset / exported packs
+├── tests/
+├── requirements.txt
+└── CHANGELOG-FORK.md
+```
 
 ### Quick start
 
-#### 1. Install
+#### Install
 
 ```bash
 git clone https://github.com/Yat-mo/hlwy-ai-checker.git
@@ -276,7 +321,7 @@ git checkout improve/v2.3-hardening
 python3 -m pip install -r requirements.txt
 ```
 
-#### 2. Start the Web UI
+#### Web UI
 
 ```bash
 python3 start.py --no-open
@@ -286,22 +331,28 @@ python3 start.py --no-open
 Useful flags:
 
 ```bash
-python3 start.py --host 127.0.0.1 --port 8000 --timeout 60 --no-open
-python3 start.py --allow-host api.openai.com --allow-host api.anthropic.com
+python3 start.py \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --timeout 60 \
+  --allow-host api.openai.com \
+  --allow-host api.anthropic.com \
+  --no-open
 ```
 
-#### 3. Recommended workflow
+#### Recommended workflow
 
-1. Choose a probe suite  
-   - **robust**: recommended multi-probe suite  
-   - **classic**: single-probe suite for old baselines
-2. Calibrate with an official key  
-3. Test third-party channels with the **same** suite  
-4. Inspect match score, mode, JS divergence, and confidence  
-5. Export the baseline or result pack
+```text
+choose suite → calibrate official → export pack → test third-party → inspect score / confidence
+```
 
-> Legacy baselines without suite metadata only match **classic**.  
-> For the new method, re-calibrate with **robust**.
+| Suite | Use when |
+| --- | --- |
+| `robust` | Default. Multi-probe, more resilient |
+| `classic` | Legacy baseline compatibility or minimal requests |
+
+> Legacy baselines without suite metadata only match `classic`.  
+> Re-calibrate with `robust` for the new method.
 
 ### Headless CLI
 
@@ -355,105 +406,88 @@ Example `channels.json`:
 
 ### Baseline packs
 
-Preset packs live in [`baselines/official/`](./baselines/official/):
+Format: `hlwy-baseline-pack/v1`
 
-- `demo-classic-pack.json`
-- `demo-robust-pack.json`
+Preset directory: [`baselines/official/`](./baselines/official/)
 
-These demo packs are **synthetic** and intended only for offline UI/CLI testing.  
-They are **not** real official model fingerprints.
+| File | Notes |
+| --- | --- |
+| `demo-classic-pack.json` | Offline demo for classic |
+| `demo-robust-pack.json` | Offline demo for robust |
 
-The Web UI baseline manager can:
+These demo packs are **synthetic**.  
+They are only for offline UI/CLI checks and are **not** real official fingerprints.
+
+The Web UI can:
 
 - import packs / arrays / single baselines
-- load preset packs with one click
-- export as `hlwy-baseline-pack/v1`
+- load preset packs
+- export standard packs
 
-See [baselines/README.md](./baselines/README.md) for the full format.
+See [baselines/README.md](./baselines/README.md) for the schema.
 
 ### How it works
 
-When asked to choose a random integer, models do not sample uniformly.  
-After enough draws, those biases form a fingerprint that is hard to fully hide with a simple system prompt.
+```text
+probe prompt
+    │
+    ▼
+many samples ──► number distribution
+    │
+    ├─ cosine similarity
+    ├─ JS divergence
+    ├─ Hellinger distance
+    ├─ mode agreement
+    └─ sample quality
+            │
+            ▼
+      overall score + confidence
+```
 
-The checker compares:
+The question is not “was this one answer lucky?”  
+The question is whether the **shape of behavior** matches.
 
-- distribution similarity (cosine / JS divergence / Hellinger)
-- mode agreement
-- sample quality (parse failures vs transport failures)
+### Safety & limits
 
-This helps answer:
-
-- does this channel look like the official model?
-- do multiple relays behave consistently?
-- is there a strong sign of substitution or routing drift?
-
-### Screenshots
-
-#### Separation
-
-<img width="1463" height="599" alt="fingerprint separation" src="https://github.com/user-attachments/assets/2081fd7c-040d-4512-aff3-755926d893e8" />
-
-<img width="1447" height="607" alt="match comparison" src="https://github.com/user-attachments/assets/0141405c-7d23-4cf0-bbe6-3e3b8a3e9fce" />
-
-#### Consistency
-
-<img width="1448" height="600" alt="consistency" src="https://github.com/user-attachments/assets/07b00a61-ee17-4d39-bb32-8e367d0d03cd" />
-
-#### Low token cost
-
-<img width="1663" height="290" alt="low token usage" src="https://github.com/user-attachments/assets/64e1f1a3-0796-4477-a1c0-1f3b004fdf4d" />
-
-#### Calibrate, then test
-
-<img width="1513" height="713" alt="calibrate then test" src="https://github.com/user-attachments/assets/2d2670b1-72ba-4cd1-9b5e-e3bf6a0d13b7" />
-
-#### Calibration UI
-
-<img width="1354" height="852" alt="calibration UI" src="https://github.com/user-attachments/assets/67ff8592-dcf3-407c-9e12-57991447d016" />
-
-### Safety notes
-
-- The local proxy binds to `127.0.0.1` by default
+- Local proxy binds to `127.0.0.1` by default
 - Private / localhost targets are blocked to reduce SSRF risk
-- Keep the proxy local; do not expose it publicly
-- Legacy baselines only match the classic suite
-- Protocol versions `2.3.0` and `2.4.0` accept each other for the same suite
-- Demo packs must not be treated as real official fingerprints
+- Do not expose the proxy publicly
+- Compare only within the same suite
+- Results are statistical estimates, not forensic proof
 
 ### Development
 
 ```bash
 python3 -m unittest discover -s tests -v
+python3 hlwy_check.py gen-demo-packs
 ```
-
-See [CHANGELOG-FORK.md](./CHANGELOG-FORK.md) for the full change list.
 
 ### Disclaimer
 
 Results are for reference only.
 
-Because model sampling is stochastic and channels may rate-limit, rewrite, or route inconsistently, this tool must **not** be used as the sole legal or commercial basis for refunds, disputes, or claims.
+Model sampling is stochastic, and relays may rate-limit, rewrite, route, or mix models.  
+This tool must **not** be used as the sole commercial or legal basis for refunds or disputes.
 
-Upstream project by **hanlinwenyuan**, originally published on [LINUX DO](https://linux.do/).  
-This fork only provides open-source improvements and does not mediate commercial disputes between users and API providers.
+Conceptually based on [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker).  
+This repository is an enhanced fork providing open-source tooling only.
 
 ---
 
-## Links
+<div align="center">
 
-- Fork: [Yat-mo/hlwy-ai-checker](https://github.com/Yat-mo/hlwy-ai-checker)
-- Upstream: [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker)
-- Community: [LINUX DO](https://linux.do/)
-- Changes: [CHANGELOG-FORK.md](./CHANGELOG-FORK.md)
-- Baseline packs: [baselines/README.md](./baselines/README.md)
+### Status
 
-## Star History
+| Item | Value |
+| --- | --- |
+| Version | `2.4.0` |
+| Branch | `improve/v2.3-hardening` |
+| Fork | [Yat-mo/hlwy-ai-checker](https://github.com/Yat-mo/hlwy-ai-checker) |
+| Upstream | [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker) |
+| Docs | [Changelog](./CHANGELOG-FORK.md) · [Baseline packs](./baselines/README.md) |
 
-<a href="https://www.star-history.com/?repos=hanlinwenyuan%2Fhlwy-ai-checker&type=date&legend=top-left">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=hanlinwenyuan/hlwy-ai-checker&type=date&theme=dark&legend=top-left" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=hanlinwenyuan/hlwy-ai-checker&type=date&legend=top-left" />
-    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=hanlinwenyuan/hlwy-ai-checker&type=date&legend=top-left" />
-  </picture>
-</a>
+<br>
+
+**Calibrate carefully. Compare fairly. Treat scores as evidence, not verdicts.**
+
+</div>
