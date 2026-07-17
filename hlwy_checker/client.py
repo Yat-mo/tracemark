@@ -42,7 +42,7 @@ def _headers_for(
     elif header_preset == "codex":
         headers["user-agent"] = "OpenAI/JS 6.45.0"
     else:
-        headers["user-agent"] = "hlwy-ai-checker-cli/2.4"
+        headers["user-agent"] = f"TraceMark-CLI/{__import__('hlwy_checker').__version__}"
     return headers
 
 

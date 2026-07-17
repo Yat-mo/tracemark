@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-AI模型识别器后端代理服务器
-解决浏览器 CORS 限制，代理所有 API 请求
+TraceMark local proxy server
+Hardened local reverse proxy for the Web UI.
 
-v2.3 security notes:
+Security notes:
 - default bind 127.0.0.1
 - SSRF protections for target base URL
 - path/body size limits
@@ -411,7 +411,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
 
 def parse_args(argv=None):
-    parser = argparse.ArgumentParser(description='hlwy-ai-checker local proxy')
+    parser = argparse.ArgumentParser(description='TraceMark local proxy')
     parser.add_argument('--host', default='127.0.0.1', help='bind host (default 127.0.0.1)')
     parser.add_argument('--port', type=int, default=8000, help='bind port (default 8000)')
     parser.add_argument(
@@ -449,17 +449,16 @@ def main(argv=None):
     allow_desc = 'any public host' if CONFIG['allow_any_public'] else ', '.join(sorted(CONFIG['allow_hosts']))
     print(f"""
 ╔════════════════════════════════════════════════════════╗
-║      hlwy-ai-checker v{VERSION} - AI模型识别器              ║
+║           TraceMark v{VERSION}  ·  模型行為指紋探測           ║
 ╚════════════════════════════════════════════════════════╝
-本项目 github: https://github.com/hanlinwenyuan/hlwy-ai-checker
-fork 改进版:   https://github.com/Yat-mo/hlwy-ai-checker
+repo: https://github.com/Yat-mo/hlwy-ai-checker
 
-🌐 前端访问地址: {url}
-🔒 bind: {host}:{port}
-🛡️  target hosts: {allow_desc}
+🌐 UI:      {url}
+🔒 bind:    {host}:{port}
+🛡️  targets: {allow_desc}
 ⏱  timeout: {CONFIG['timeout']}s
 
-按 Ctrl+C 停止
+Press Ctrl+C to stop
 """)
 
     if not args.no_open:

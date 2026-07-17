@@ -1,9 +1,13 @@
-# CHANGES in this fork (v2.4.0)
+# TraceMark Changes
 
-Fork: https://github.com/Yat-mo/hlwy-ai-checker  
-Upstream: https://github.com/hanlinwenyuan/hlwy-ai-checker
+Repo: https://github.com/Yat-mo/hlwy-ai-checker  
+Inspired by: https://github.com/hanlinwenyuan/hlwy-ai-checker
 
-## v2.4.0 — headless CLI + baseline packs
+## v2.4.0 — TraceMark branding + headless CLI + baseline packs
+
+### Brand
+- Product name: **TraceMark**
+- Tagline: Behavioral Model Fingerprinting / 模型行為指紋探測
 
 ### Headless CLI
 - Package: `hlwy_checker/`

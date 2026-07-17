@@ -1,4 +1,4 @@
-"""Headless CLI for hlwy-ai-checker."""
+"""Headless CLI for TraceMark."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from . import __version__
+from . import PRODUCT_NAME, PRODUCT_TAGLINE, __version__
 from .baselines import (
     OFFICIAL_DIR,
     filter_compatible,
@@ -285,10 +285,10 @@ def cmd_inspect_pack(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="hlwy-check",
-        description=f"hlwy-ai-checker headless CLI v{__version__} (protocol {PROTOCOL_VERSION})",
+        prog="tracemark",
+        description=f"{PRODUCT_NAME} headless CLI v{__version__} · {PRODUCT_TAGLINE} (protocol {PROTOCOL_VERSION})",
     )
-    parser.add_argument("--version", action="version", version=f"hlwy-check {__version__}")
+    parser.add_argument("--version", action="version", version=f"{PRODUCT_NAME} {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("suites", help="list probe suites / protocol metadata")

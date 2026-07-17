@@ -1,18 +1,19 @@
 <div align="center">
 
-# hlwy-ai-checker
+# TraceMark
 
-### AI API 指紋檢測 · Model Fingerprinting
+### 模型行為指紋探測器  
+### Behavioral Model Fingerprinting
 
-**檢查第三方 AI 渠道是否像它宣稱的模型**  
-**Check whether a third-party AI channel behaves like the model it claims**
+**標定官方指紋，比對第三方渠道，找出摻假與漂移**  
+**Calibrate official fingerprints. Compare third-party channels. Catch substitution and drift.**
 
 <br>
 
 [![Version](https://img.shields.io/badge/version-2.4.0-7c5cff?style=for-the-badge)](./CHANGELOG-FORK.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-LGPL--2.1-0E7C86?style=for-the-badge)](./LICENSE)
-[![Interface](https://img.shields.io/badge/interface-Web%20%2B%20CLI-111827?style=for-the-badge)](#-快速開始--quick-start)
+[![Interface](https://img.shields.io/badge/interface-Web%20%2B%20CLI-111827?style=for-the-badge)](#-快速開始)
 
 <br>
 
@@ -21,21 +22,21 @@
 <br>
 
 ```text
-  official model  ── calibrate ──►  fingerprint baseline
-                                         │
-  third-party API ── probe suite ────────┼── compare ──► match / drift / suspicion
+ official API ── calibrate ──► baseline fingerprint
+                                      │
+ third-party  ── probe suite ─────────┼── score ──► match / drift / suspicion
 ```
 
 </div>
 
 ---
 
-## 目錄 / Contents
+## 目錄
 
 | | |
 |---|---|
-| 繁中 | [概念](#這是什麼) · [能力](#核心能力) · [架構](#專案結構) · [開始](#-快速開始--quick-start) · [CLI](#headless-cli) · [基準包](#基準包) · [原理](#原理) · [安全](#安全與邊界) · [免責](#免責聲明) |
-| EN | [Idea](#what-it-is) · [Features](#core-features) · [Layout](#project-layout) · [Start](#-快速開始--quick-start) · [CLI](#headless-cli-1) · [Packs](#baseline-packs) · [Method](#how-it-works) · [Safety](#safety--limits) · [Disclaimer](#disclaimer) |
+| 繁中 | [概念](#這是什麼) · [能力](#核心能力) · [結構](#專案結構) · [開始](#-快速開始) · [CLI](#headless-cli) · [基準包](#基準包) · [原理](#原理) · [安全](#安全與邊界) · [免責](#免責聲明) |
+| EN | [Idea](#what-it-is) · [Features](#core-features) · [Layout](#project-layout) · [Start](#quick-start) · [CLI](#headless-cli-1) · [Packs](#baseline-packs) · [Method](#how-it-works) · [Safety](#safety--limits) · [Disclaimer](#disclaimer) |
 
 ---
 
@@ -44,27 +45,27 @@
 ### 這是什麼
 
 大語言模型不是真正的亂數產生器。  
-當你要求它「從 1 到 355 隨機選一個數字」時，不同模型會留下不同的統計偏差。
+當你要求它「隨機選一個數字」，不同模型會留下不同的統計偏差。
 
 這些偏差在大量取樣後，會形成可比較的**行為指紋**。
 
-`hlwy-ai-checker` 用這件事做渠道驗證：
+**TraceMark** 用這件事做渠道驗證：
 
 1. 先對**官方 API** 標定基準指紋  
 2. 再用同一套探針測試**第三方渠道**  
-3. 比較分布、眾數、樣本品質，判斷是否像同一模型
+3. 比較分布、眾數與樣本品質，判斷是否像同一模型
 
-它適合拿來回答這類問題：
+它適合回答：
 
 - 這個中轉是不是真的在跑它宣稱的模型？
-- 兩個渠道對同一模型的行為是否一致？
-- 有沒有明顯摻假、串路、或路由漂移的跡象？
+- 兩個渠道對同一模型是否行為一致？
+- 有沒有明顯摻假、串路、或路由漂移？
 
 ### 核心能力
 
 | 面向 | 內容 |
 | --- | --- |
-| **Web UI** | 本機一頁式介面：標定、測試、基準管理、渠道橫評 |
+| **Web UI** | 本機一頁式流程：標定、測試、基準管理、渠道橫評 |
 | **Headless CLI** | `calibrate` / `test` / `compare`，可進腳本與 CI |
 | **多探針協議** | `classic` 相容舊基準；`robust` 多探針更穩 |
 | **嚴格解析** | 只接受純整數輸出，減少髒樣本污染 |
@@ -75,7 +76,7 @@
 ### 專案結構
 
 ```text
-hlwy-ai-checker/
+.
 ├── start.py                 # Web UI + 本機安全代理
 ├── hlwy-ai-checker.html     # 前端介面
 ├── hlwy_check.py            # CLI 入口
@@ -86,7 +87,9 @@ hlwy-ai-checker/
 └── CHANGELOG-FORK.md
 ```
 
-### ✨ 快速開始 / Quick Start
+> 倉庫目錄名仍沿用 upstream fork 名稱；產品對外品牌為 **TraceMark**。
+
+### ✨ 快速開始
 
 #### 安裝
 
@@ -103,7 +106,7 @@ python3 -m pip install -r requirements.txt
 python3 start.py --no-open
 ```
 
-然後開啟：
+開啟：
 
 ```text
 http://127.0.0.1:8000
@@ -258,8 +261,8 @@ python3 hlwy_check.py gen-demo-packs
 模型取樣具有隨機性，中轉也可能限流、改寫、路由或混模。  
 本工具結果**不能**作為商業糾紛、退款或法律主張的唯一依據。
 
-上游概念來自 [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker)。  
-本倉庫是功能增強 fork，僅提供開源工具，不介入任何商業爭議。
+TraceMark 由 [Yat-mo/hlwy-ai-checker](https://github.com/Yat-mo/hlwy-ai-checker) 維護。  
+方法論受 [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker) 啟發，本倉庫為功能增強 fork。
 
 ---
 
@@ -272,7 +275,7 @@ Ask them to pick a “random” integer and different models leave different sta
 
 After enough samples, those biases become a **behavioral fingerprint**.
 
-`hlwy-ai-checker` uses that fingerprint to audit channels:
+**TraceMark** turns that into a channel audit tool:
 
 1. **Calibrate** against an official API  
 2. **Probe** a third-party channel with the same suite  
@@ -299,7 +302,7 @@ Use it when you want to know:
 ### Project layout
 
 ```text
-hlwy-ai-checker/
+.
 ├── start.py                 # Web UI + hardened local proxy
 ├── hlwy-ai-checker.html     # frontend
 ├── hlwy_check.py            # CLI entry
@@ -309,6 +312,9 @@ hlwy-ai-checker/
 ├── requirements.txt
 └── CHANGELOG-FORK.md
 ```
+
+> The repository directory still uses the upstream fork name.  
+> The product brand is **TraceMark**.
 
 ### Quick start
 
@@ -469,8 +475,8 @@ Results are for reference only.
 Model sampling is stochastic, and relays may rate-limit, rewrite, route, or mix models.  
 This tool must **not** be used as the sole commercial or legal basis for refunds or disputes.
 
-Conceptually based on [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker).  
-This repository is an enhanced fork providing open-source tooling only.
+TraceMark is maintained at [Yat-mo/hlwy-ai-checker](https://github.com/Yat-mo/hlwy-ai-checker).  
+Methodologically inspired by [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker); this repository is an enhanced fork.
 
 ---
 
@@ -480,10 +486,10 @@ This repository is an enhanced fork providing open-source tooling only.
 
 | Item | Value |
 | --- | --- |
+| Product | **TraceMark** |
 | Version | `2.4.0` |
 | Branch | `improve/v2.3-hardening` |
-| Fork | [Yat-mo/hlwy-ai-checker](https://github.com/Yat-mo/hlwy-ai-checker) |
-| Upstream | [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker) |
+| Repo | [Yat-mo/hlwy-ai-checker](https://github.com/Yat-mo/hlwy-ai-checker) |
 | Docs | [Changelog](./CHANGELOG-FORK.md) · [Baseline packs](./baselines/README.md) |
 
 <br>

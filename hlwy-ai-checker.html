@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI模型识别器 v2.3 - Model Fingerprinting Tool</title>
+    <title>TraceMark · 模型行為指紋探測</title>
     <style>
         * {
             margin: 0;
@@ -707,9 +707,12 @@
 
     <div class="container">
         <div class="header">
-            <h1>🎯 AI模型识别器</h1>
-            <p>通过随机数生成模式识别和区分不同的AI模型</p>
-            <p style="font-size: 0.85em; opacity: 0.7; margin-top: 5px;">v2.2.1</p>
+            <h1>TraceMark</h1>
+            <p>模型行為指紋探測 · Behavioral Model Fingerprinting</p>
+            <p style="font-size: 0.95em; opacity: 0.85; margin-top: 8px;">
+                標定官方指紋，比對第三方渠道，找出摻假與漂移
+            </p>
+            <p style="font-size: 0.8em; opacity: 0.65; margin-top: 8px;">v2.4.0</p>
         </div>
 
         <div class="content">
@@ -2676,8 +2679,8 @@
          *  初始化
          * ======================================== */
         window.addEventListener('DOMContentLoaded', () => {
-            console.log(`AI模型识别器已加载 v${PROTOCOL_VERSION}`);
-            console.log(`当前已保存 ${baselines.length} 个基准模型`);
+            console.log(`TraceMark loaded v${PROTOCOL_VERSION}`);
+            console.log(`saved baselines: ${baselines.length}`);
         });
     </script>
 </body>
