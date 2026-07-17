@@ -92,7 +92,7 @@ ALLOWED_API_SUFFIXES = (
 
 MAX_BODY_BYTES = 256 * 1024
 DEFAULT_TIMEOUT = 60
-VERSION = '2.3.0'
+VERSION = '2.4.0'
 
 # 创建全局 Session，清除默认头，避免泄漏 python-requests 指纹
 _session = req_lib.Session()
@@ -221,6 +221,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 'allow_any_public': CONFIG.get('allow_any_public', True),
                 'allow_hosts': sorted(CONFIG.get('allow_hosts') or []),
             })
+        elif path == '/baselines/official/index.json':
+            self.serve_baseline_index()
+        elif path.startswith('/baselines/'):
+            self.serve_baseline_file(path)
         else:
             self.send_error(404, 'File not found')
 
@@ -234,6 +238,60 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
     def _html_path(self) -> str:
         return os.path.join(CONFIG['root_dir'], 'hlwy-ai-checker.html')
+
+    def _baselines_root(self) -> str:
+        return os.path.join(CONFIG['root_dir'], 'baselines')
+
+    def serve_baseline_index(self):
+        root = os.path.join(self._baselines_root(), 'official')
+        items = []
+        if os.path.isdir(root):
+            for name in sorted(os.listdir(root)):
+                if not name.endswith('.json'):
+                    continue
+                full = os.path.join(root, name)
+                try:
+                    with open(full, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    items.append({
+                        'file': name,
+                        'url': f'/baselines/official/{name}',
+                        'name': data.get('name') or name,
+                        'version': data.get('version'),
+                        'suiteId': data.get('suiteId'),
+                        'source': data.get('source'),
+                        'description': data.get('description'),
+                        'baselines': len(data.get('baselines') or []),
+                    })
+                except Exception as e:  # noqa: BLE001
+                    items.append({'file': name, 'error': str(e)})
+        self.send_json_response(200, {'packs': items, 'version': VERSION})
+
+    def serve_baseline_file(self, url_path: str):
+        # Only allow files under ./baselines
+        rel = url_path[len('/baselines/'):].lstrip('/')
+        if not rel or '..' in rel.split('/'):
+            self.send_error(400, 'invalid baseline path')
+            return
+        full = os.path.normpath(os.path.join(self._baselines_root(), rel))
+        root = os.path.normpath(self._baselines_root())
+        if not full.startswith(root + os.sep) and full != root:
+            self.send_error(400, 'invalid baseline path')
+            return
+        if not full.endswith('.json') or not os.path.isfile(full):
+            self.send_error(404, 'baseline not found')
+            return
+        try:
+            with open(full, 'rb') as f:
+                body = f.read()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self.send_cors_headers()
+            self.end_headers()
+            self.wfile.write(body)
+        except FileNotFoundError:
+            self.send_error(404, 'baseline not found')
 
     def serve_html(self):
         """返回 HTML 文件"""

@@ -934,7 +934,9 @@
 
                 <button class="btn btn-secondary" onclick="exportBaselines()" style="margin-top: 20px;">📥 导出所有基准</button>
                 <button class="btn btn-secondary" onclick="importBaselines()" style="margin-top: 20px; margin-left: 10px;">📤 导入基准</button>
+                <button class="btn btn-secondary" onclick="loadOfficialBaselinePacks()" style="margin-top: 20px; margin-left: 10px;">📦 加载预置基准包</button>
                 <input type="file" id="import-file" style="display: none;" accept=".json" onchange="handleImport()">
+                <p style="color:#888;font-size:0.85em;margin-top:12px;">支持导入：基准数组 / 单基准 / `hlwy-baseline-pack/v1` 包。预置包来自本地 `baselines/official/`（含 synthetic demo，仅供离线验证）。</p>
             </div>
 
             <!-- 大横评 Tab -->
@@ -1241,7 +1243,7 @@
         /* ========================================
          *  探针协议 v2
          * ======================================== */
-        const PROTOCOL_VERSION = '2.3.0';
+        const PROTOCOL_VERSION = '2.4.0';
         const PROBE_SUITES = {
             classic: {
                 id: 'classic',
@@ -1336,7 +1338,8 @@
             if (!baseline.protocolVersion && !baseline.suiteId) {
                 return suiteId === 'classic';
             }
-            return baseline.suiteId === suiteId && baseline.protocolVersion === PROTOCOL_VERSION;
+            const okVersions = new Set(['2.4.0', '2.3.0']);
+            return baseline.suiteId === suiteId && okVersions.has(baseline.protocolVersion);
         }
 
         /* ========================================
@@ -2183,14 +2186,39 @@
 
         function exportBaselines() {
             if (baselines.length === 0) { alert('没有可导出的基准数据'); return; }
-            const blob = new Blob([JSON.stringify(baselines, null, 2)], { type: 'application/json' });
+            const pack = {
+                format: 'hlwy-baseline-pack/v1',
+                name: 'local-export',
+                version: PROTOCOL_VERSION,
+                createdAt: new Date().toISOString(),
+                protocolVersion: PROTOCOL_VERSION,
+                source: 'local-export',
+                baselines
+            };
+            const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `model-baselines-${Date.now()}.json`;
+            a.download = `model-baselines-pack-${Date.now()}.json`;
             a.click();
         }
 
         function importBaselines() { document.getElementById('import-file').click(); }
+
+        function normalizeImportedBaselines(imported) {
+            if (Array.isArray(imported)) return imported;
+            if (imported && Array.isArray(imported.baselines)) return imported.baselines;
+            if (imported && imported.distribution && imported.name) return [imported];
+            return null;
+        }
+
+        function isValidBaseline(b) {
+            return b && typeof b.name === 'string' &&
+                typeof b.model === 'string' &&
+                Array.isArray(b.distribution) && b.distribution.length === 355 &&
+                b.stats && typeof b.stats.mean === 'number' &&
+                typeof b.stats.stdDev === 'number' &&
+                typeof b.stats.median === 'number';
+        }
 
         function handleImport() {
             const file = document.getElementById('import-file').files[0];
@@ -2199,15 +2227,9 @@
             reader.onload = function(e) {
                 try {
                     const imported = JSON.parse(e.target.result);
-                    if (!Array.isArray(imported)) { alert('无效的基准数据格式'); return; }
-                    const valid = imported.filter(b =>
-                        b && typeof b.name === 'string' &&
-                        typeof b.model === 'string' &&
-                        Array.isArray(b.distribution) && b.distribution.length === 355 &&
-                        b.stats && typeof b.stats.mean === 'number' &&
-                        typeof b.stats.stdDev === 'number' &&
-                        typeof b.stats.median === 'number'
-                    );
+                    const list = normalizeImportedBaselines(imported);
+                    if (!list) { alert('无效的基准数据格式'); return; }
+                    const valid = list.filter(isValidBaseline);
                     if (valid.length === 0) {
                         alert('导入的数据中没有有效的基准记录，请检查文件格式');
                         return;
@@ -2215,8 +2237,8 @@
                     baselines = [...baselines, ...valid];
                     localStorage.setItem('modelBaselines', JSON.stringify(baselines));
                     renderBaselines();
-                    if (valid.length < imported.length) {
-                        alert(`成功导入 ${valid.length} 个基准（${imported.length - valid.length} 个因格式不完整被跳过）`);
+                    if (valid.length < list.length) {
+                        alert(`成功导入 ${valid.length} 个基准（${list.length - valid.length} 个因格式不完整被跳过）`);
                     } else {
                         alert(`成功导入 ${valid.length} 个基准`);
                     }
@@ -2224,6 +2246,43 @@
             };
             reader.readAsText(file);
             document.getElementById('import-file').value = '';
+        }
+
+        async function loadOfficialBaselinePacks() {
+            try {
+                const idxResp = await fetch('/baselines/official/index.json');
+                if (!idxResp.ok) throw new Error(`无法读取预置包索引 (${idxResp.status})`);
+                const idx = await idxResp.json();
+                const packs = idx.packs || [];
+                if (!packs.length) {
+                    alert('未找到预置基准包。可先运行: python3 hlwy_check.py gen-demo-packs');
+                    return;
+                }
+                let importedCount = 0;
+                const names = [];
+                for (const packMeta of packs) {
+                    if (!packMeta.url) continue;
+                    const resp = await fetch(packMeta.url);
+                    if (!resp.ok) continue;
+                    const data = await resp.json();
+                    const list = normalizeImportedBaselines(data) || [];
+                    const valid = list.filter(isValidBaseline);
+                    if (!valid.length) continue;
+                    // Avoid exact-name duplicates
+                    const existing = new Set(baselines.map(b => b.name));
+                    const fresh = valid.filter(b => !existing.has(b.name));
+                    baselines = [...baselines, ...fresh];
+                    importedCount += fresh.length;
+                    names.push(`${packMeta.name || packMeta.file} (+${fresh.length})`);
+                }
+                localStorage.setItem('modelBaselines', JSON.stringify(baselines));
+                renderBaselines();
+                alert(importedCount > 0
+                    ? `已加载预置基准 ${importedCount} 个：\n${names.join('\n')}\n\n注意：demo 包是 synthetic，不是真实官方指纹。`
+                    : '没有新的预置基准可导入（可能已全部存在）。');
+            } catch (error) {
+                alert('加载预置基准失败: ' + error.message);
+            }
         }
 
         /* ========================================

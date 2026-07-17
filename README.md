@@ -1,12 +1,13 @@
 # hlwy-ai-checker
 检查第三方AI API是否掺假以及渠道一致
 
-> Fork 改进版 v2.3.0：https://github.com/Yat-mo/hlwy-ai-checker  
+> Fork 改进版 v2.4.0：https://github.com/Yat-mo/hlwy-ai-checker  
 > 上游：https://github.com/hanlinwenyuan/hlwy-ai-checker  
 > 变更说明：[CHANGELOG-FORK.md](./CHANGELOG-FORK.md)
 
 ## 快速开始（改进版）
 
+### Web UI + 本地代理
 ```bash
 python3 -m pip install -r requirements.txt
 python3 start.py --no-open
@@ -16,6 +17,48 @@ python3 start.py --no-open
 可选参数：`--host` `--port` `--allow-host api.openai.com` `--timeout 60`
 
 建议使用「稳健多探针」套件重新标定后再测第三方渠道。旧基准仅兼容「经典单探针」。
+
+### Headless CLI
+```bash
+# 查看探针套件 / 预置包
+python3 hlwy_check.py suites
+python3 hlwy_check.py list-packs
+
+# 用官方 key 标定并导出 pack
+export HLWY_API_KEY=sk-...
+python3 hlwy_check.py calibrate \
+  --name "gpt-4o-official" \
+  --base-url https://api.openai.com/v1 \
+  --model gpt-4o \
+  --suite robust \
+  --iterations 200 \
+  --as-pack \
+  -o baselines/official/gpt-4o-robust.json
+
+# 测试第三方渠道
+python3 hlwy_check.py test \
+  --base-url https://third-party.example/v1 \
+  --api-key sk-xxx \
+  --model gpt-4o \
+  --suite robust \
+  --baseline baselines/official/gpt-4o-robust.json
+
+# 多渠道横评
+python3 hlwy_check.py compare \
+  --channels channels.json \
+  --baseline baselines/official/gpt-4o-robust.json \
+  --suite robust
+```
+
+`channels.json` 示例：
+```json
+[
+  {"name":"中转A","api_type":"openai","base_url":"https://a.example/v1","api_key":"sk-a","model":"gpt-4o"},
+  {"name":"中转B","api_type":"openai","base_url":"https://b.example/v1","api_key":"sk-b","model":"gpt-4o"}
+]
+```
+
+预置 demo 包位于 `baselines/official/`，是 synthetic 数据，只用于离线验证，不是真实官方指纹。详见 [baselines/README.md](./baselines/README.md)。
 
 # 特色&优点
 

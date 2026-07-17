@@ -1,52 +1,68 @@
-# CHANGES in this fork (v2.3.0)
+# CHANGES in this fork (v2.4.0)
 
 Fork: https://github.com/Yat-mo/hlwy-ai-checker  
 Upstream: https://github.com/hanlinwenyuan/hlwy-ai-checker
 
-## What changed
+## v2.4.0 — headless CLI + baseline packs
+
+### Headless CLI
+- Package: `hlwy_checker/`
+- Entry: `python3 hlwy_check.py ...` or `python3 -m hlwy_checker ...`
+- Commands:
+  - `suites`
+  - `calibrate`
+  - `test`
+  - `compare`
+  - `list-packs` / `inspect-pack` / `gen-demo-packs`
+- Direct API calls (no browser / local proxy required for CLI)
+- Shared protocol with the web UI: strict parse, multi-probe suites, scoring
+
+### Baseline packs
+- Format: `hlwy-baseline-pack/v1`
+- Directory: `baselines/official/`
+- Demo packs included (synthetic, for offline testing only)
+- Web UI: import pack / load official packs button
+- Local server serves:
+  - `/baselines/official/index.json`
+  - `/baselines/official/*.json`
+
+## v2.3.0 — hardening
 
 ### Proxy safety (`start.py`)
-- Default bind: `127.0.0.1` (not just `localhost` alias messaging)
-- SSRF checks for `X-Target-Base-URL` (scheme, credentials, private/link-local IPs, localhost)
+- Default bind: `127.0.0.1`
+- SSRF checks for `X-Target-Base-URL`
 - Body size limit (256KB)
 - Upstream timeout default 60s
-- `/health` endpoint
-- CLI flags:
-  - `--host`
-  - `--port`
-  - `--allow-host` (repeatable; when set, only listed hosts allowed)
-  - `--timeout`
-  - `--no-open`
-- HTML path resolved relative to script directory
+- `/health`
+- CLI flags: `--host --port --allow-host --timeout --no-open`
 
 ### Detection robustness (`hlwy-ai-checker.html`)
-- Probe protocol version `2.3.0`
-- Probe suites:
-  - **稳健多探针 (robust)** recommended
-  - **经典单探针 (classic)** for old baseline compatibility
-- Strict number parse: only pure integer replies accepted
-- Transport failures vs parse failures separated
-- Retry with backoff for 429 / 5xx / timeout
-- Abort cancels in-flight fetch via `AbortController`
-- Scoring: distribution-first (75%) + mode auxiliary (25%), plus Hellinger and confidence proxy
-- Baselines store protocol metadata (`protocolVersion`, `suiteId`, prompts, sample quality)
-- Cross-suite comparison is blocked
+- Probe protocol versioned suites: classic / robust
+- Strict number parse
+- Transport vs parse failure buckets
+- Retry + AbortController
+- Distribution-first scoring + confidence
 
 ### Engineering
 - `requirements.txt`
-- `tests/test_proxy_security.py`
-- This changelog
+- unit tests
+- this changelog
 
-## Compatibility notes
-- Old baselines (no suite metadata) only match **classic** suite.
-- Re-calibrate with **robust** suite for new comparisons.
-- Matching still primarily uses the primary probe (`1..355` ZH) distribution for chart compatibility.
+## Compatibility
+- Old baselines (no suite metadata) only match **classic**
+- Protocol `2.3.0` and `2.4.0` baselines are mutually accepted for same suite
+- Demo packs are synthetic; recalibrate real official keys before production claims
 
 ## Run
 ```bash
 python3 -m pip install -r requirements.txt
 python3 start.py --no-open
-# open http://127.0.0.1:8000
+# http://127.0.0.1:8000
+
+# headless
+python3 hlwy_check.py suites
+python3 hlwy_check.py list-packs
+python3 hlwy_check.py calibrate --name my-baseline --base-url https://api.openai.com/v1 --model gpt-4o --suite robust -o out.json --as-pack
 
 python3 -m unittest discover -s tests -v
 ```
