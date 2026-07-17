@@ -1,6 +1,22 @@
 # hlwy-ai-checker
 检查第三方AI API是否掺假以及渠道一致
 
+> Fork 改进版 v2.3.0：https://github.com/Yat-mo/hlwy-ai-checker  
+> 上游：https://github.com/hanlinwenyuan/hlwy-ai-checker  
+> 变更说明：[CHANGELOG-FORK.md](./CHANGELOG-FORK.md)
+
+## 快速开始（改进版）
+
+```bash
+python3 -m pip install -r requirements.txt
+python3 start.py --no-open
+# 浏览器打开 http://127.0.0.1:8000
+```
+
+可选参数：`--host` `--port` `--allow-host api.openai.com` `--timeout 60`
+
+建议使用「稳健多探针」套件重新标定后再测第三方渠道。旧基准仅兼容「经典单探针」。
+
 # 特色&优点
 
 ## 识别精确，区分度大

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI模型识别器 - Model Fingerprinting Tool</title>
+    <title>AI模型识别器 v2.3 - Model Fingerprinting Tool</title>
     <style>
         * {
             margin: 0;
@@ -760,6 +760,14 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>探针套件</label>
+                    <select id="calib-probe-suite">
+                        <option value="robust">稳健多探针 (推荐)</option>
+                        <option value="classic">经典单探针 (兼容旧基准)</option>
+                    </select>
+                    <div style="color:#666;font-size:0.85em;margin-top:6px;">同一套件的基准与测试才可比较。旧版基准仅兼容“经典单探针”。</div>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>测试次数 (50-500)</label>
@@ -854,6 +862,13 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>探针套件</label>
+                    <select id="test-probe-suite">
+                        <option value="robust">稳健多探针 (推荐)</option>
+                        <option value="classic">经典单探针 (兼容旧基准)</option>
+                    </select>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>测试次数 (50-500)</label>
@@ -940,6 +955,13 @@
 
                 <button class="btn-add-channel" onclick="addChannel()">+ 添加渠道</button>
 
+                <div class="form-group">
+                    <label>探针套件</label>
+                    <select id="compare-probe-suite">
+                        <option value="robust">稳健多探针 (推荐)</option>
+                        <option value="classic">经典单探针 (兼容旧基准)</option>
+                    </select>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>每渠道测试次数 (50-500)</label>
@@ -1209,29 +1231,152 @@
          * ======================================== */
         function abortCalibration() {
             calibRunning = false;
+            abortAllInFlight();
         }
         function abortTest() {
             testRunning = false;
+            abortAllInFlight();
+        }
+
+        /* ========================================
+         *  探针协议 v2
+         * ======================================== */
+        const PROTOCOL_VERSION = '2.3.0';
+        const PROBE_SUITES = {
+            classic: {
+                id: 'classic',
+                name: '经典单探针 (兼容 v2.2)',
+                probes: [
+                    {
+                        id: 'rand_1_355_zh',
+                        weight: 1,
+                        min: 1,
+                        max: 355,
+                        temperature: 1.0,
+                        max_tokens: 10,
+                        prompt: '请从1到355之间随机选择一个数字，只输出这个数字，不要有任何其他内容。'
+                    }
+                ]
+            },
+            robust: {
+                id: 'robust',
+                name: '稳健多探针 (推荐)',
+                probes: [
+                    {
+                        id: 'rand_1_355_zh',
+                        weight: 0.4,
+                        min: 1,
+                        max: 355,
+                        temperature: 1.0,
+                        max_tokens: 10,
+                        prompt: '请从1到355之间随机选择一个数字，只输出这个数字，不要有任何其他内容。'
+                    },
+                    {
+                        id: 'rand_1_100_zh',
+                        weight: 0.25,
+                        min: 1,
+                        max: 100,
+                        temperature: 1.0,
+                        max_tokens: 10,
+                        prompt: '请从1到100之间随机选择一个整数，只输出这个数字，不要有任何其他内容。'
+                    },
+                    {
+                        id: 'rand_1_355_en',
+                        weight: 0.2,
+                        min: 1,
+                        max: 355,
+                        temperature: 1.0,
+                        max_tokens: 10,
+                        prompt: 'Pick a random integer from 1 to 355. Output only the number with no other text.'
+                    },
+                    {
+                        id: 'rand_1_50_zh',
+                        weight: 0.15,
+                        min: 1,
+                        max: 50,
+                        temperature: 1.0,
+                        max_tokens: 10,
+                        prompt: '请从1到50之间随机选择一个整数，只输出这个数字，不要有任何其他内容。'
+                    }
+                ]
+            }
+        };
+
+        function getSelectedSuiteId(prefix) {
+            const el = document.getElementById(`${prefix}-probe-suite`);
+            const id = el ? el.value : 'classic';
+            return PROBE_SUITES[id] ? id : 'classic';
+        }
+
+        function getSuite(suiteId) {
+            return PROBE_SUITES[suiteId] || PROBE_SUITES.classic;
+        }
+
+        function protocolMeta(suiteId) {
+            const suite = getSuite(suiteId);
+            return {
+                protocolVersion: PROTOCOL_VERSION,
+                suiteId: suite.id,
+                suiteName: suite.name,
+                probes: suite.probes.map(p => ({
+                    id: p.id,
+                    min: p.min,
+                    max: p.max,
+                    temperature: p.temperature,
+                    max_tokens: p.max_tokens,
+                    weight: p.weight,
+                    prompt: p.prompt
+                }))
+            };
+        }
+
+        function protocolCompatible(baseline, suiteId) {
+            if (!baseline) return false;
+            // Legacy baselines: treat as classic single probe.
+            if (!baseline.protocolVersion && !baseline.suiteId) {
+                return suiteId === 'classic';
+            }
+            return baseline.suiteId === suiteId && baseline.protocolVersion === PROTOCOL_VERSION;
         }
 
         /* ========================================
          *  API 调用
          * ======================================== */
-        async function callOpenAI(baseUrl, apiKey, model, headerPreset) {
+        let activeAbortControllers = new Set();
+
+        async function proxyFetch(url, options = {}) {
+            const controller = new AbortController();
+            activeAbortControllers.add(controller);
+            try {
+                const response = await fetch(url, Object.assign({}, options, { signal: controller.signal }));
+                return response;
+            } finally {
+                activeAbortControllers.delete(controller);
+            }
+        }
+
+        function abortAllInFlight() {
+            for (const c of activeAbortControllers) {
+                try { c.abort(); } catch (_) {}
+            }
+            activeAbortControllers.clear();
+        }
+
+        async function callOpenAI(baseUrl, apiKey, model, headerPreset, probe) {
             const headers = {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`,
                 'X-Target-Base-URL': baseUrl,
                 'X-Header-Preset': headerPreset || 'default'
             };
-            const response = await fetch('/chat/completions', {
+            const response = await proxyFetch('/chat/completions', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
                     model: model,
-                    messages: [{ role: 'user', content: '请从1到355之间随机选择一个数字，只输出这个数字，不要有任何其他内容。' }],
-                    temperature: 1.0,
-                    max_tokens: 10
+                    messages: [{ role: 'user', content: probe.prompt }],
+                    temperature: probe.temperature,
+                    max_tokens: probe.max_tokens
                 })
             });
             if (!response.ok) {
@@ -1239,10 +1384,12 @@
                 throw new Error(`API错误: ${response.status} - ${errorText}`);
             }
             const data = await response.json();
-            return data.choices[0].message.content.trim();
+            const content = data?.choices?.[0]?.message?.content;
+            if (content == null) throw new Error('OpenAI 返回缺少 choices[0].message.content');
+            return String(content).trim();
         }
 
-        async function callAnthropic(baseUrl, apiKey, model, headerPreset) {
+        async function callAnthropic(baseUrl, apiKey, model, headerPreset, probe) {
             const headers = {
                 'Content-Type': 'application/json',
                 'x-api-key': apiKey,
@@ -1250,14 +1397,14 @@
                 'X-Target-Base-URL': baseUrl,
                 'X-Header-Preset': headerPreset || 'default'
             };
-            const response = await fetch('/messages', {
+            const response = await proxyFetch('/messages', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
                     model: model,
-                    max_tokens: 10,
-                    messages: [{ role: 'user', content: '请从1到355之间随机选择一个数字，只输出这个数字，不要有任何其他内容。' }],
-                    temperature: 1.0
+                    max_tokens: probe.max_tokens,
+                    messages: [{ role: 'user', content: probe.prompt }],
+                    temperature: probe.temperature
                 })
             });
             if (!response.ok) {
@@ -1265,24 +1412,26 @@
                 throw new Error(`API错误: ${response.status} - ${errorText}`);
             }
             const data = await response.json();
-            return data.content[0].text.trim();
+            const text = data?.content?.[0]?.text;
+            if (text == null) throw new Error('Anthropic 返回缺少 content[0].text');
+            return String(text).trim();
         }
 
-        async function callOpenAIResponses(baseUrl, apiKey, model, headerPreset) {
+        async function callOpenAIResponses(baseUrl, apiKey, model, headerPreset, probe) {
             const headers = {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`,
                 'X-Target-Base-URL': baseUrl,
                 'X-Header-Preset': headerPreset || 'default'
             };
-            const response = await fetch('/responses', {
+            const response = await proxyFetch('/responses', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
                     model: model,
-                    input: [{ role: 'user', content: '请从1到355之间随机选择一个数字，只输出这个数字，不要有任何其他内容。' }],
-                    temperature: 1.0,
-                    max_output_tokens: 10
+                    input: [{ role: 'user', content: probe.prompt }],
+                    temperature: probe.temperature,
+                    max_output_tokens: probe.max_tokens
                 })
             });
             if (!response.ok) {
@@ -1290,33 +1439,80 @@
                 throw new Error(`API错误: ${response.status} - ${errorText}`);
             }
             const data = await response.json();
-            const outputMsg = data.output.find(o => o.type === 'message');
+            if (typeof data.output_text === 'string' && data.output_text.trim()) {
+                return data.output_text.trim();
+            }
+            const outputMsg = Array.isArray(data.output) ? data.output.find(o => o.type === 'message') : null;
             if (outputMsg && outputMsg.content && outputMsg.content.length > 0) {
-                const textBlock = outputMsg.content.find(c => c.type === 'output_text');
-                if (textBlock) return textBlock.text.trim();
+                const textBlock = outputMsg.content.find(c => c.type === 'output_text' || c.type === 'text');
+                if (textBlock && (textBlock.text || textBlock.content)) {
+                    return String(textBlock.text || textBlock.content).trim();
+                }
             }
             throw new Error('Responses API 返回数据中未找到文本内容');
         }
 
-        function extractNumber(text) {
-            const match = text.match(/\d+/);
-            if (match) {
-                const num = parseInt(match[0]);
-                if (num >= 1 && num <= 355) return num;
-            }
-            return null;
+        /**
+         * Strict parse: only accept pure integer response in [min, max].
+         * Rejects free text that merely contains a number.
+         */
+        function extractNumber(text, min = 1, max = 355) {
+            if (text == null) return null;
+            const s = String(text).trim();
+            // allow optional surrounding quotes/backticks and trailing punctuation
+            const m = s.match(/^[`"'“”‘’]?(\d{1,3})[`"'“”‘’]?(?:[.。!！?？])?$/);
+            if (!m) return null;
+            const num = parseInt(m[1], 10);
+            if (Number.isNaN(num) || num < min || num > max) return null;
+            return num;
         }
 
-        async function getRandomNumber(apiType, baseUrl, apiKey, model, headerPreset) {
-            let response;
-            if (apiType === 'openai') {
-                response = await callOpenAI(baseUrl, apiKey, model, headerPreset);
-            } else if (apiType === 'openai-responses') {
-                response = await callOpenAIResponses(baseUrl, apiKey, model, headerPreset);
-            } else {
-                response = await callAnthropic(baseUrl, apiKey, model, headerPreset);
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function callModelText(apiType, baseUrl, apiKey, model, headerPreset, probe) {
+            if (apiType === 'openai') return callOpenAI(baseUrl, apiKey, model, headerPreset, probe);
+            if (apiType === 'openai-responses') return callOpenAIResponses(baseUrl, apiKey, model, headerPreset, probe);
+            return callAnthropic(baseUrl, apiKey, model, headerPreset, probe);
+        }
+
+        async function getProbeSample(apiType, baseUrl, apiKey, model, headerPreset, probe, opts = {}) {
+            const maxAttempts = opts.maxAttempts || 3;
+            let lastErr = null;
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                try {
+                    const responseText = await callModelText(apiType, baseUrl, apiKey, model, headerPreset, probe);
+                    const num = extractNumber(responseText, probe.min, probe.max);
+                    if (num === null) {
+                        return {
+                            ok: false,
+                            kind: 'parse',
+                            text: responseText,
+                            error: new Error(`返回内容无法严格解析为 ${probe.min}-${probe.max} 的纯数字: ${JSON.stringify(responseText).slice(0, 120)}`)
+                        };
+                    }
+                    return { ok: true, kind: 'ok', value: num, text: responseText };
+                } catch (error) {
+                    lastErr = error;
+                    const msg = error && error.message ? error.message : String(error);
+                    const retriable = /API错误:\s*(429|5\d\d)/.test(msg) || /timeout|Timeout|AbortError|网络/.test(msg);
+                    if (!retriable || attempt === maxAttempts) {
+                        return { ok: false, kind: 'transport', error: error };
+                    }
+                    await sleep(300 * attempt * attempt);
+                }
             }
-            return extractNumber(response);
+            return { ok: false, kind: 'transport', error: lastErr || new Error('unknown') };
+        }
+
+        // Backward-compatible helper used by older call sites.
+        async function getRandomNumber(apiType, baseUrl, apiKey, model, headerPreset, probe) {
+            const p = probe || getSuite('classic').probes[0];
+            const sample = await getProbeSample(apiType, baseUrl, apiKey, model, headerPreset, p);
+            if (sample.ok) return sample.value;
+            if (sample.kind === 'parse') return null;
+            throw sample.error;
         }
 
         /* ========================================
@@ -1378,48 +1574,78 @@
             hideStatus('calib-status');
             document.getElementById('calib-chart-container').style.display = 'none';
 
+            const suiteId = getSelectedSuiteId('calib');
+            const suite = getSuite(suiteId);
+            const primaryProbe = suite.probes[0];
+
             calibRunning = true;
 
-            const results = [];
+            // Multi-probe: allocate iterations by weight.
+            const plan = [];
+            let assigned = 0;
+            suite.probes.forEach((probe, idx) => {
+                let n = Math.floor(iterations * probe.weight);
+                if (idx === suite.probes.length - 1) n = Math.max(0, iterations - assigned);
+                assigned += n;
+                for (let i = 0; i < n; i++) plan.push(probe);
+            });
+            while (plan.length < iterations) plan.push(primaryProbe);
+
+            const resultsByProbe = {};
+            suite.probes.forEach(p => { resultsByProbe[p.id] = []; });
+            const primaryResults = [];
             let successCount = 0;
-            let errorCount   = 0;
+            let parseFailCount = 0;
+            let transportFailCount = 0;
 
             await runWithConcurrency(
-                iterations,
+                plan.length,
                 concurrency,
                 () => calibRunning,
                 async (i) => {
                     if (!calibRunning) return false;
+                    const probe = plan[i];
                     try {
-                        const num = await getRandomNumber(apiType, baseUrl, apiKey, model, headerPreset);
-                        if (num !== null) {
-                            results.push(num);
+                        const sample = await getProbeSample(apiType, baseUrl, apiKey, model, headerPreset, probe);
+                        if (sample.ok) {
+                            resultsByProbe[probe.id].push(sample.value);
+                            if (probe.id === primaryProbe.id) primaryResults.push(sample.value);
                             successCount++;
                             clearConsecutiveErrors('calib');
+                        } else if (sample.kind === 'parse') {
+                            parseFailCount++;
+                            addError('calib', sample.error);
                         } else {
-                            errorCount++;
-                            addError('calib', new Error('返回内容无法解析为 1-355 的数字'));
+                            transportFailCount++;
+                            addError('calib', sample.error);
                         }
                     } catch (error) {
-                        errorCount++;
+                        transportFailCount++;
                         addError('calib', error);
                         console.error('请求错误:', error);
                     }
                 },
                 (completed, total) => {
                     updateProgress('calib-progress-bar', 'calib-progress-fill', (completed / total) * 100);
-                    showStatus('calib-status', `进度: ${successCount} 成功 / ${errorCount} 失败 / ${total} 总数（并发: ${concurrency}）`, 'info');
+                    showStatus(
+                        'calib-status',
+                        `进度: ${successCount} 成功 / 解析失败 ${parseFailCount} / 传输失败 ${transportFailCount} / ${total}（套件: ${suite.name}，并发: ${concurrency}）`,
+                        'info'
+                    );
                 }
             );
 
+            const errorCount = parseFailCount + transportFailCount;
             if (!calibRunning) {
                 showStatus('calib-status', `⏹ 已中止。成功: ${successCount}, 失败: ${errorCount}`, 'error');
             }
 
             stopBtn.style.display = 'none';
 
-            if (!calibRunning && results.length < 40) {
-                // 用户中止且数据不足
+            // Compatibility distribution still uses primary probe range for chart/match.
+            const chartResults = primaryResults.length >= 20 ? primaryResults : Object.values(resultsByProbe).flat();
+
+            if (!calibRunning && chartResults.length < 40) {
                 btn.disabled = false;
                 btn.textContent = '🚀 开始标定';
                 calibRunning = false;
@@ -1428,34 +1654,64 @@
 
             calibRunning = false;
 
-            if (results.length < 40) {
+            if (chartResults.length < 40) {
                 showStatus('calib-status',
-                    `❌ 标定失败：仅获得 ${results.length} 个有效数据（至少需要 40 个），无法建立基准。请检查 API 配置后重试。`,
+                    `❌ 标定失败：仅获得 ${chartResults.length} 个有效数据（至少需要 40 个），无法建立基准。请检查 API 配置后重试。`,
                     'error');
                 btn.disabled = false;
                 btn.textContent = '🚀 开始标定';
                 return;
             }
 
-            const distribution = calculateDistribution(results);
-            const stats = calculateStats(results);
+            const maxValue = primaryProbe.max;
+            const distribution = calculateDistribution(chartResults, maxValue);
+            // Pad/truncate to 355 for legacy storage compatibility.
+            const storedDistribution = distribution.length === 355
+                ? distribution
+                : (() => {
+                    const arr = new Array(355).fill(0);
+                    for (let i = 0; i < Math.min(355, distribution.length); i++) arr[i] = distribution[i];
+                    // renormalize
+                    const s = arr.reduce((a, b) => a + b, 0) || 1;
+                    return arr.map(x => x / s);
+                })();
+            const stats = calculateStats(chartResults);
+            const quality = sampleQuality(successCount, parseFailCount, transportFailCount, iterations);
+            const meta = protocolMeta(suiteId);
 
             const baseline = {
-                name: baselineName, model, apiType,
+                name: baselineName,
+                model,
+                apiType,
                 timestamp: new Date().toISOString(),
-                iterations: results.length, distribution, stats, rawData: results
+                iterations: chartResults.length,
+                distribution: storedDistribution,
+                stats,
+                rawData: chartResults,
+                ...meta,
+                sampleQuality: quality,
+                parseFailCount,
+                transportFailCount,
+                probeResults: Object.fromEntries(
+                    Object.entries(resultsByProbe).map(([k, v]) => [k, {
+                        count: v.length,
+                        stats: calculateStats(v),
+                        rawData: v
+                    }])
+                )
             };
 
             baselines.push(baseline);
             localStorage.setItem('modelBaselines', JSON.stringify(baselines));
-            displayCalibrationChart(distribution, baselineName);
+            displayCalibrationChart(storedDistribution, baselineName);
 
+            const qPct = (quality * 100).toFixed(0);
             if (errorCount > 0) {
                 showStatus('calib-status',
-                    `✅ 标定完成！成功: ${successCount}, 失败: ${errorCount}（部分请求出错，但有效数据足够建立基准）`,
+                    `✅ 标定完成！成功: ${successCount}, 解析失败: ${parseFailCount}, 传输失败: ${transportFailCount}；样本质量 ${qPct}%（套件 ${suite.name}）`,
                     'success');
             } else {
-                showStatus('calib-status', `✅ 标定完成！${successCount} 次请求全部成功`, 'success');
+                showStatus('calib-status', `✅ 标定完成！${successCount} 次请求全部成功（套件 ${suite.name}）`, 'success');
             }
 
             btn.disabled = false;
@@ -1502,47 +1758,77 @@
             document.getElementById('test-results').style.display = 'none';
             document.getElementById('test-chart-container').style.display = 'none';
 
+            const suiteId = getSelectedSuiteId('test');
+            const suite = getSuite(suiteId);
+            const primaryProbe = suite.probes[0];
+            const compatible = baselines.filter(b => protocolCompatible(b, suiteId));
+            if (compatible.length === 0) {
+                showStatus('test-status', `当前探针套件「${suite.name}」没有兼容基准。请用同一套件重新标定，或切换到经典单探针以使用旧基准。`, 'error');
+                return;
+            }
+
             testRunning = true;
 
-            const results = [];
+            const plan = [];
+            let assigned = 0;
+            suite.probes.forEach((probe, idx) => {
+                let n = Math.floor(iterations * probe.weight);
+                if (idx === suite.probes.length - 1) n = Math.max(0, iterations - assigned);
+                assigned += n;
+                for (let i = 0; i < n; i++) plan.push(probe);
+            });
+            while (plan.length < iterations) plan.push(primaryProbe);
+
+            const primaryResults = [];
             let successCount = 0;
-            let errorCount   = 0;
+            let parseFailCount = 0;
+            let transportFailCount = 0;
 
             await runWithConcurrency(
-                iterations,
+                plan.length,
                 concurrency,
                 () => testRunning,
                 async (i) => {
                     if (!testRunning) return false;
+                    const probe = plan[i];
                     try {
-                        const num = await getRandomNumber(apiType, baseUrl, apiKey, model, headerPreset);
-                        if (num !== null) {
-                            results.push(num);
+                        const sample = await getProbeSample(apiType, baseUrl, apiKey, model, headerPreset, probe);
+                        if (sample.ok) {
+                            // Matching chart uses primary probe samples; other probes still affect sampleQuality.
+                            if (probe.id === primaryProbe.id) primaryResults.push(sample.value);
                             successCount++;
                             clearConsecutiveErrors('test');
+                        } else if (sample.kind === 'parse') {
+                            parseFailCount++;
+                            addError('test', sample.error);
                         } else {
-                            errorCount++;
-                            addError('test', new Error('返回内容无法解析为 1-355 的数字'));
+                            transportFailCount++;
+                            addError('test', sample.error);
                         }
                     } catch (error) {
-                        errorCount++;
+                        transportFailCount++;
                         addError('test', error);
                         console.error('请求错误:', error);
                     }
                 },
                 (completed, total) => {
                     updateProgress('test-progress-bar', 'test-progress-fill', (completed / total) * 100);
-                    showStatus('test-status', `进度: ${successCount} 成功 / ${errorCount} 失败 / ${total} 总数（并发: ${concurrency}）`, 'info');
+                    showStatus(
+                        'test-status',
+                        `进度: ${successCount} 成功 / 解析失败 ${parseFailCount} / 传输失败 ${transportFailCount} / ${total}（套件: ${suite.name}，并发: ${concurrency}）`,
+                        'info'
+                    );
                 }
             );
 
+            const errorCount = parseFailCount + transportFailCount;
             if (!testRunning) {
                 showStatus('test-status', `⏹ 已中止。成功: ${successCount}, 失败: ${errorCount}`, 'error');
             }
 
             stopBtn.style.display = 'none';
 
-            if (!testRunning && results.length < 40) {
+            if (!testRunning && primaryResults.length < 40) {
                 btn.disabled = false;
                 btn.textContent = '🔍 开始测试';
                 testRunning = false;
@@ -1551,25 +1837,34 @@
 
             testRunning = false;
 
-            if (results.length < 40) {
+            if (primaryResults.length < 40) {
                 showStatus('test-status',
-                    `❌ 测试失败：仅获得 ${results.length} 个有效数据（至少需要 40 个），无法进行匹配。请检查 API 配置后重试。`,
+                    `❌ 测试失败：主探针仅获得 ${primaryResults.length} 个有效数据（至少需要 40 个），无法进行匹配。请检查 API 配置后重试。`,
                     'error');
                 btn.disabled = false;
                 btn.textContent = '🔍 开始测试';
                 return;
             }
 
-            const distribution = calculateDistribution(results);
-            const matches = matchBaselines(distribution, results);
-            displayTestResults(matches, distribution, model);
+            const quality = sampleQuality(successCount, parseFailCount, transportFailCount, iterations);
+            const distribution = calculateDistribution(primaryResults, primaryProbe.max);
+            const storedDistribution = distribution.length === 355
+                ? distribution
+                : (() => {
+                    const arr = new Array(355).fill(0);
+                    for (let i = 0; i < Math.min(355, distribution.length); i++) arr[i] = distribution[i];
+                    const s = arr.reduce((a, b) => a + b, 0) || 1;
+                    return arr.map(x => x / s);
+                })();
+            const matches = matchBaselines(storedDistribution, primaryResults, suiteId, quality);
+            displayTestResults(matches, storedDistribution, model);
 
             if (errorCount > 0) {
                 showStatus('test-status',
-                    `✅ 测试完成！成功: ${successCount}, 失败: ${errorCount}（部分请求出错，匹配结果基于成功的数据）`,
+                    `✅ 测试完成！成功: ${successCount}, 解析失败: ${parseFailCount}, 传输失败: ${transportFailCount}；样本质量 ${(quality*100).toFixed(0)}%`,
                     'success');
             } else {
-                showStatus('test-status', `✅ 测试完成！${successCount} 次请求全部成功`, 'success');
+                showStatus('test-status', `✅ 测试完成！${successCount} 次请求全部成功（套件 ${suite.name}）`, 'success');
             }
 
             btn.disabled = false;
@@ -1579,14 +1874,19 @@
         /* ========================================
          *  数学计算
          * ======================================== */
-        function calculateDistribution(numbers) {
-            const counts = new Array(355).fill(0);
-            numbers.forEach(num => { if (num >= 1 && num <= 355) counts[num - 1]++; });
-            const total = numbers.length;
+        function calculateDistribution(numbers, maxValue = 355) {
+            const counts = new Array(maxValue).fill(0);
+            numbers.forEach(num => {
+                if (num >= 1 && num <= maxValue) counts[num - 1]++;
+            });
+            const total = numbers.length || 1;
             return counts.map(c => c / total);
         }
 
         function calculateStats(numbers) {
+            if (!numbers.length) {
+                return { mean: 0, median: 0, stdDev: 0, min: 0, max: 0, unique: 0, mode: null, modeCount: 0 };
+            }
             const sorted = [...numbers].sort((a, b) => a - b);
             const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
             const variance = numbers.reduce((sum, x) => sum + Math.pow(x - mean, 2), 0) / numbers.length;
@@ -1594,53 +1894,107 @@
             numbers.forEach(n => { freq[n] = (freq[n] || 0) + 1; });
             let modeVal = numbers[0], modeCount = 0;
             for (const [k, v] of Object.entries(freq)) {
-                if (v > modeCount) { modeCount = v; modeVal = parseInt(k); }
+                if (v > modeCount) { modeCount = v; modeVal = parseInt(k, 10); }
             }
             return {
-                mean, median: sorted[Math.floor(sorted.length / 2)],
-                stdDev: Math.sqrt(variance), min: sorted[0],
-                max: sorted[sorted.length - 1], unique: new Set(numbers).size,
-                mode: modeVal, modeCount
+                mean,
+                median: sorted[Math.floor(sorted.length / 2)],
+                stdDev: Math.sqrt(variance),
+                min: sorted[0],
+                max: sorted[sorted.length - 1],
+                unique: new Set(numbers).size,
+                mode: modeVal,
+                modeCount
             };
         }
 
-        function calculateSimilarity(dist1, dist2, stats1, stats2) {
+        function hellingerDistance(dist1, dist2) {
+            let s = 0;
+            const n = Math.min(dist1.length, dist2.length);
+            for (let i = 0; i < n; i++) {
+                const a = Math.sqrt(Math.max(0, dist1[i]));
+                const b = Math.sqrt(Math.max(0, dist2[i]));
+                s += (a - b) * (a - b);
+            }
+            return Math.sqrt(s / 2);
+        }
+
+        function calculateSimilarity(dist1, dist2, stats1, stats2, sampleQuality = 1) {
             let dotProduct = 0, norm1 = 0, norm2 = 0;
-            for (let i = 0; i < dist1.length; i++) {
+            const n = Math.min(dist1.length, dist2.length);
+            for (let i = 0; i < n; i++) {
                 dotProduct += dist1[i] * dist2[i];
                 norm1 += dist1[i] * dist1[i];
                 norm2 += dist2[i] * dist2[i];
             }
-            const cosineSim = dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+            const denom = Math.sqrt(norm1) * Math.sqrt(norm2);
+            const cosineSim = denom > 0 ? (dotProduct / denom) : 0;
+
             let jsDiv = 0;
             const epsilon = 1e-10;
-            for (let i = 0; i < dist1.length; i++) {
+            for (let i = 0; i < n; i++) {
                 const p = dist1[i] + epsilon, q = dist2[i] + epsilon, m = (p + q) / 2;
                 jsDiv += (p * Math.log(p / m) + q * Math.log(q / m)) / 2;
             }
 
-            const distribScore = cosineSim * Math.exp(-jsDiv);
+            const hellinger = hellingerDistance(dist1, dist2);
+            // Primary score from distribution agreement; mode is auxiliary only.
+            const distribScore = Math.max(0, Math.min(1, cosineSim * Math.exp(-jsDiv) * (1 - hellinger)));
+
             let modeScore = 0;
-            if (stats1 && stats2) {
+            if (stats1 && stats2 && stats1.mode != null && stats2.mode != null) {
                 const mode1 = stats1.mode, mode2 = stats2.mode;
                 if (mode1 === mode2) {
                     modeScore = 1.0;
                 } else {
+                    // Scale by range of the compared distribution when possible.
+                    const range = Math.max(1, Math.max(stats1.max || 355, stats2.max || 355) - Math.min(stats1.min || 1, stats2.min || 1));
                     const diff = Math.abs(mode1 - mode2);
-                    modeScore = Math.max(0, 1 - diff / 50);
+                    modeScore = Math.max(0, 1 - diff / Math.max(20, range * 0.15));
                 }
             }
-            const overallScore = modeScore * 0.5 + distribScore * 0.5;
-            return { cosineSimilarity: cosineSim, jsDivergence: jsDiv, modeScore, overallScore };
+
+            const quality = Math.max(0.2, Math.min(1, sampleQuality));
+            const overallScore = (modeScore * 0.25 + distribScore * 0.75) * quality;
+            // Simple confidence proxy: agreement between mode and distribution + sample quality.
+            const confidence = Math.max(0, Math.min(1, (1 - Math.abs(modeScore - distribScore)) * quality));
+
+            return {
+                cosineSimilarity: cosineSim,
+                jsDivergence: jsDiv,
+                hellinger,
+                modeScore,
+                distribScore,
+                overallScore,
+                confidence
+            };
         }
 
-        function matchBaselines(testDistribution, testResults) {
+        function sampleQuality(successCount, parseFailCount, transportFailCount, targetIterations) {
+            const total = successCount + parseFailCount + transportFailCount;
+            if (total === 0) return 0;
+            const successRate = successCount / Math.max(targetIterations, total);
+            const parseRate = parseFailCount / total;
+            // Heavy parse failures usually mean wrong model behavior / prompt mismatch.
+            return Math.max(0, Math.min(1, successRate * (1 - 0.7 * parseRate)));
+        }
+
+        function matchBaselines(testDistribution, testResults, suiteId, quality = 1) {
             const testStats = calculateStats(testResults);
-            return baselines.map(baseline => {
-                const similarity = calculateSimilarity(testDistribution, baseline.distribution, testStats, baseline.stats);
-                const modeMatch = testStats.mode === baseline.stats.mode;
-                return { baseline, similarity, testStats, score: similarity.overallScore, modeMatch };
-            }).sort((a, b) => b.score - a.score);
+            return baselines
+                .filter(b => protocolCompatible(b, suiteId))
+                .map(baseline => {
+                    const similarity = calculateSimilarity(
+                        testDistribution,
+                        baseline.distribution,
+                        testStats,
+                        baseline.stats,
+                        quality
+                    );
+                    const modeMatch = testStats.mode === baseline.stats.mode;
+                    return { baseline, similarity, testStats, score: similarity.overallScore, modeMatch };
+                })
+                .sort((a, b) => b.score - a.score);
         }
 
         /* ========================================
@@ -1710,10 +2064,11 @@
                 item.innerHTML = `
                     <div class="model-name">#${index + 1} ${match.baseline.name}</div>
                     <div class="similarity">
-                        <strong>综合匹配度:</strong> ${(match.score * 100).toFixed(2)}%<br>
+                        <strong>综合匹配度:</strong> ${(match.score * 100).toFixed(2)}%（置信 ${(match.similarity.confidence * 100).toFixed(0)}%）<br>
                         <strong>众数匹配:</strong> ${(match.similarity.modeScore * 100).toFixed(0)}%（测试=${match.testStats.mode}, 基准=${match.baseline.stats.mode}）<br>
+                        <strong>分布分:</strong> ${((match.similarity.distribScore || 0) * 100).toFixed(2)}%<br>
                         <strong>余弦相似度:</strong> ${(match.similarity.cosineSimilarity * 100).toFixed(2)}%<br>
-                        <strong>JS散度:</strong> ${match.similarity.jsDivergence.toFixed(4)}
+                        <strong>JS散度:</strong> ${match.similarity.jsDivergence.toFixed(4)} | Hellinger: ${(match.similarity.hellinger || 0).toFixed(4)}
                     </div>`;
                 matchesContainer.appendChild(item);
             });
@@ -1774,7 +2129,7 @@
                     <div>
                         <div class="name">${baseline.name}</div>
                         <div class="stats">
-                            模型: ${baseline.model} | 样本数: ${baseline.iterations} | 创建: ${new Date(baseline.timestamp).toLocaleString('zh-CN')}<br>
+                            模型: ${baseline.model} | 样本数: ${baseline.iterations} | 套件: ${baseline.suiteName || baseline.suiteId || '经典(旧)'} | 创建: ${new Date(baseline.timestamp).toLocaleString('zh-CN')}<br>
                             均值: ${baseline.stats.mean.toFixed(2)} | 标准差: ${baseline.stats.stdDev.toFixed(2)} | 唯一值: ${baseline.stats.unique}
                         </div>
                     </div>
@@ -1791,6 +2146,7 @@
         function viewBaseline(index) {
             const b = baselines[index];
             alert(`基准: ${b.name}\n模型: ${b.model}\nAPI: ${b.apiType}\n样本: ${b.iterations}\n` +
+                  `协议: ${b.protocolVersion || 'legacy'}\n套件: ${b.suiteName || b.suiteId || 'classic(legacy)'}\n` +
                   `时间: ${new Date(b.timestamp).toLocaleString('zh-CN')}\n\n` +
                   `众数: ${b.stats.mode != null ? b.stats.mode : '(旧数据无此字段)'}` +
                   `${b.stats.modeCount ? ' (出现 ' + b.stats.modeCount + ' 次)' : ''}\n` +
@@ -1997,6 +2353,7 @@
 
         function abortCompare() {
             compareRunning = false;
+            abortAllInFlight();
         }
 
         async function startCompare() {
@@ -2018,6 +2375,12 @@
             const iterations  = Math.max(50, Math.min(500, parseInt(document.getElementById('compare-iterations').value) || 200));
             const concurrency = Math.max(1, Math.min(50, parseInt(document.getElementById('compare-concurrency').value) || 5));
             const baseline    = baselines[parseInt(baselineIdx)];
+            const suiteId = getSelectedSuiteId('compare');
+            const suite = getSuite(suiteId);
+            if (!protocolCompatible(baseline, suiteId)) {
+                showStatus('compare-status', `所选基准与探针套件不兼容。基准套件=${baseline.suiteId || 'classic(legacy)'}，当前=${suiteId}`, 'error');
+                return;
+            }
 
             const channels = compareChannels.map(ch => getChannelConfig(ch.id));
             for (const ch of channels) {
@@ -2049,7 +2412,7 @@
 
             showStatus('compare-status', `正在并行测试 ${channels.length} 个渠道...`, 'info');
 
-            const channelResults = await Promise.all(channels.map(ch => runChannelTest(ch, iterations, concurrency)));
+            const channelResults = await Promise.all(channels.map(ch => runChannelTest(ch, iterations, concurrency, suite)));
 
             stopBtn.style.display = 'none';
             compareRunning = false;
@@ -2064,11 +2427,18 @@
 
             const ranked = validResults.map(r => {
                 const dist = calculateDistribution(r.results);
+                // normalize to 355 bins for baseline compare
+                const stored = dist.length === 355 ? dist : (() => {
+                    const arr = new Array(355).fill(0);
+                    for (let i = 0; i < Math.min(355, dist.length); i++) arr[i] = dist[i];
+                    const s = arr.reduce((a, b) => a + b, 0) || 1;
+                    return arr.map(x => x / s);
+                })();
                 const stats = calculateStats(r.results);
-                const similarity = calculateSimilarity(dist, baseline.distribution, stats, baseline.stats);
+                const similarity = calculateSimilarity(stored, baseline.distribution, stats, baseline.stats, r.quality || 1);
                 return {
                     channel: r.channel,
-                    distribution: dist,
+                    distribution: stored,
                     stats,
                     similarity,
                     score: similarity.overallScore,
@@ -2092,27 +2462,42 @@
             btn.textContent = '🏆 开始横评';
         }
 
-        async function runChannelTest(channel, iterations, concurrency) {
+        async function runChannelTest(channel, iterations, concurrency, suite) {
             const results = [];
             let successCount = 0;
-            let errorCount   = 0;
+            let parseFailCount = 0;
+            let transportFailCount = 0;
+            const primaryProbe = suite.probes[0];
+
+            const plan = [];
+            let assigned = 0;
+            suite.probes.forEach((probe, idx) => {
+                let n = Math.floor(iterations * probe.weight);
+                if (idx === suite.probes.length - 1) n = Math.max(0, iterations - assigned);
+                assigned += n;
+                for (let i = 0; i < n; i++) plan.push(probe);
+            });
+            while (plan.length < iterations) plan.push(primaryProbe);
 
             await runWithConcurrency(
-                iterations,
+                plan.length,
                 concurrency,
                 () => compareRunning,
-                async () => {
+                async (i) => {
                     if (!compareRunning) return false;
+                    const probe = plan[i];
                     try {
-                        const num = await getRandomNumber(channel.apiType, channel.baseUrl, channel.apiKey, channel.model, channel.headerPreset);
-                        if (num !== null) {
-                            results.push(num);
+                        const sample = await getProbeSample(channel.apiType, channel.baseUrl, channel.apiKey, channel.model, channel.headerPreset, probe);
+                        if (sample.ok) {
+                            if (probe.id === primaryProbe.id) results.push(sample.value);
                             successCount++;
+                        } else if (sample.kind === 'parse') {
+                            parseFailCount++;
                         } else {
-                            errorCount++;
+                            transportFailCount++;
                         }
                     } catch (e) {
-                        errorCount++;
+                        transportFailCount++;
                     }
                 },
                 (completed, total) => {
@@ -2120,21 +2505,24 @@
                     const fill = document.getElementById(`ch-progress-fill-${channel.id}`);
                     fill.style.width = pct + '%';
                     fill.textContent = Math.round(pct) + '%';
+                    const errorCount = parseFailCount + transportFailCount;
                     document.getElementById(`ch-status-${channel.id}`).textContent =
-                        `${successCount} 成功 / ${errorCount} 失败 / ${total} 总数`;
+                        `${successCount} 成功 / 解析${parseFailCount} / 传输${transportFailCount} / ${total}`;
                 }
             );
 
+            const errorCount = parseFailCount + transportFailCount;
+            const quality = sampleQuality(successCount, parseFailCount, transportFailCount, iterations);
             const statusEl = document.getElementById(`ch-status-${channel.id}`);
             if (results.length >= 40) {
-                statusEl.textContent = `✅ 完成 — ${successCount} 成功, ${errorCount} 失败`;
+                statusEl.textContent = `✅ 完成 — 主探针 ${results.length}，质量 ${(quality*100).toFixed(0)}%`;
                 statusEl.style.color = '#155724';
             } else {
-                statusEl.textContent = `❌ 数据不足 (${results.length}/40) — ${errorCount} 失败`;
+                statusEl.textContent = `❌ 数据不足 (${results.length}/40) — 失败 ${errorCount}`;
                 statusEl.style.color = '#721c24';
             }
 
-            return { channel, results, successCount, errorCount };
+            return { channel, results, successCount, errorCount, parseFailCount, transportFailCount, quality };
         }
 
         function displayCompareRanking(ranked, baseline) {
@@ -2145,7 +2533,7 @@
             let html = `<p style="color:#666;margin-bottom:12px;">基准：<strong>${baseline.name}</strong>（${baseline.model}）</p>`;
             html += `<table class="ranking-table"><thead><tr>
                 <th>排名</th><th>渠道名称</th><th>综合匹配度</th>
-                <th>众数匹配</th><th>余弦相似度</th><th>JS散度</th><th>数据量</th>
+                <th>众数匹配</th><th>余弦相似度</th><th>JS散度</th><th>置信</th><th>数据量</th>
             </tr></thead><tbody>`;
 
             ranked.forEach((r, i) => {
@@ -2160,6 +2548,7 @@
                     <td>${modeMatch} ${r.stats.mode}（基准${baseline.stats.mode}）</td>
                     <td>${(r.similarity.cosineSimilarity * 100).toFixed(2)}%</td>
                     <td>${r.similarity.jsDivergence.toFixed(4)}</td>
+                    <td>${((r.similarity.confidence || 0) * 100).toFixed(0)}%</td>
                     <td>${r.totalResults}</td>
                 </tr>`;
             });
@@ -2228,7 +2617,7 @@
          *  初始化
          * ======================================== */
         window.addEventListener('DOMContentLoaded', () => {
-            console.log('AI模型识别器已加载');
+            console.log(`AI模型识别器已加载 v${PROTOCOL_VERSION}`);
             console.log(`当前已保存 ${baselines.length} 个基准模型`);
         });
     </script>
