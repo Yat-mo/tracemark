@@ -1,6 +1,6 @@
 # TraceMark Changes
 
-Repo: https://github.com/Yat-mo/hlwy-ai-checker  
+Repo: https://github.com/Yat-mo/tracemark  
 Inspired by: https://github.com/hanlinwenyuan/hlwy-ai-checker
 
 ## v2.4.0 — TraceMark branding + headless CLI + baseline packs
@@ -8,6 +8,7 @@ Inspired by: https://github.com/hanlinwenyuan/hlwy-ai-checker
 ### Brand
 - Product name: **TraceMark**
 - Tagline: Behavioral Model Fingerprinting / 模型行為指紋探測
+- Repository renamed to: `Yat-mo/tracemark`
 
 ### Headless CLI
 - Package: `hlwy_checker/`

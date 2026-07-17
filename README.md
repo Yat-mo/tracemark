@@ -87,15 +87,17 @@
 └── CHANGELOG-FORK.md
 ```
 
-> 倉庫目錄名仍沿用 upstream fork 名稱；產品對外品牌為 **TraceMark**。
+> 倉庫路徑：`Yat-mo/tracemark`  
+> 產品名：**TraceMark**  
+> 方法論受 [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker) 啟發。
 
 ### ✨ 快速開始
 
 #### 安裝
 
 ```bash
-git clone https://github.com/Yat-mo/hlwy-ai-checker.git
-cd hlwy-ai-checker
+git clone https://github.com/Yat-mo/tracemark.git
+cd tracemark
 git checkout improve/v2.3-hardening
 python3 -m pip install -r requirements.txt
 ```
@@ -261,7 +263,7 @@ python3 hlwy_check.py gen-demo-packs
 模型取樣具有隨機性，中轉也可能限流、改寫、路由或混模。  
 本工具結果**不能**作為商業糾紛、退款或法律主張的唯一依據。
 
-TraceMark 由 [Yat-mo/hlwy-ai-checker](https://github.com/Yat-mo/hlwy-ai-checker) 維護。  
+TraceMark 由 [Yat-mo/tracemark](https://github.com/Yat-mo/tracemark) 維護。  
 方法論受 [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker) 啟發，本倉庫為功能增強 fork。
 
 ---
@@ -313,16 +315,17 @@ Use it when you want to know:
 └── CHANGELOG-FORK.md
 ```
 
-> The repository directory still uses the upstream fork name.  
-> The product brand is **TraceMark**.
+> Repository: `Yat-mo/tracemark`  
+> Product: **TraceMark**  
+> Methodologically inspired by [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker).
 
 ### Quick start
 
 #### Install
 
 ```bash
-git clone https://github.com/Yat-mo/hlwy-ai-checker.git
-cd hlwy-ai-checker
+git clone https://github.com/Yat-mo/tracemark.git
+cd tracemark
 git checkout improve/v2.3-hardening
 python3 -m pip install -r requirements.txt
 ```
@@ -475,7 +478,7 @@ Results are for reference only.
 Model sampling is stochastic, and relays may rate-limit, rewrite, route, or mix models.  
 This tool must **not** be used as the sole commercial or legal basis for refunds or disputes.
 
-TraceMark is maintained at [Yat-mo/hlwy-ai-checker](https://github.com/Yat-mo/hlwy-ai-checker).  
+TraceMark is maintained at [Yat-mo/tracemark](https://github.com/Yat-mo/tracemark).  
 Methodologically inspired by [hanlinwenyuan/hlwy-ai-checker](https://github.com/hanlinwenyuan/hlwy-ai-checker); this repository is an enhanced fork.
 
 ---
@@ -489,7 +492,7 @@ Methodologically inspired by [hanlinwenyuan/hlwy-ai-checker](https://github.com/
 | Product | **TraceMark** |
 | Version | `2.4.0` |
 | Branch | `improve/v2.3-hardening` |
-| Repo | [Yat-mo/hlwy-ai-checker](https://github.com/Yat-mo/hlwy-ai-checker) |
+| Repo | [Yat-mo/tracemark](https://github.com/Yat-mo/tracemark) |
 | Docs | [Changelog](./CHANGELOG-FORK.md) · [Baseline packs](./baselines/README.md) |
 
 <br>

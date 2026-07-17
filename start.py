@@ -451,7 +451,7 @@ def main(argv=None):
 ╔════════════════════════════════════════════════════════╗
 ║           TraceMark v{VERSION}  ·  模型行為指紋探測           ║
 ╚════════════════════════════════════════════════════════╝
-repo: https://github.com/Yat-mo/hlwy-ai-checker
+repo: https://github.com/Yat-mo/tracemark
 
 🌐 UI:      {url}
 🔒 bind:    {host}:{port}
