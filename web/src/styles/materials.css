@@ -179,15 +179,6 @@
   flex-direction: column;
 }
 
-.grouped-body > .field + .field,
-.grouped-body > .row + .field,
-.grouped-body > .field + .row,
-.grouped-body > .row + .row,
-.grouped-body > .btn-row,
-.grouped-body > .hint-row {
-  border-top: 0.5px solid var(--separator-hairline);
-}
-
 .grouped-footer {
   padding: 7px 16px 0;
   color: var(--label-secondary);
@@ -305,14 +296,6 @@
 .row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-}
-
-.row > .field {
-  border-top: 0;
-}
-
-.row > .field + .field {
-  border-left: 0.5px solid var(--separator-hairline);
 }
 
 .hint-row {
@@ -466,7 +449,6 @@
 .error-panel-body {
   max-height: 220px;
   overflow: auto;
-  border-top: 0.5px solid var(--separator-hairline);
 }
 
 .error-panel-body ul {
@@ -514,11 +496,6 @@
 
 .baseline-item {
   padding: 12px 16px;
-  border-top: 0.5px solid var(--separator-hairline);
-}
-
-.baseline-item:first-child {
-  border-top: 0;
 }
 
 .baseline-item,
@@ -538,11 +515,6 @@
 
 .match-item {
   padding: 12px 16px;
-  border-top: 0.5px solid var(--separator-hairline);
-}
-
-.match-item:first-child {
-  border-top: 0;
 }
 
 .baseline-item .name,
@@ -588,7 +560,7 @@ table.ranking-table {
 table.ranking-table th,
 table.ranking-table td {
   padding: 10px 12px;
-  border-bottom: 0.5px solid var(--separator-hairline);
+  border-bottom: 0;
   text-align: left;
   white-space: nowrap;
 }
@@ -821,8 +793,4 @@ table.ranking-table th {
     grid-template-columns: 1fr;
   }
 
-  .row > .field + .field {
-    border-left: 0;
-    border-top: 0.5px solid var(--separator-hairline);
-  }
 }

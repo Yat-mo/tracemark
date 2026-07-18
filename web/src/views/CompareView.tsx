@@ -331,9 +331,6 @@ export function CompareView({ baselines }: { baselines: Baseline[] }) {
                   </div>
                 </div>
               ) : null}
-              {idx < channels.length - 1 ? (
-                <div style={{ height: 0.5, background: 'var(--separator-hairline)', margin: '4px 0' }} />
-              ) : null}
             </div>
           ))}
         </div>
