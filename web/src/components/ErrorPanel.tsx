@@ -19,9 +19,9 @@ export function ErrorPanel({
   return (
     <div className="error-panel">
       <button type="button" className="error-panel-header" onClick={() => setOpen((v) => !v)}>
-        <span>⚠️</span>
+        <span aria-hidden="true">!</span>
         <strong>{summary || `發生 ${errors.length} 個錯誤`}</strong>
-        <span>{open ? '▲' : '▼'}</span>
+        <span aria-hidden="true">{open ? '▴' : '▾'}</span>
       </button>
       {open ? (
         <div className="error-panel-body">

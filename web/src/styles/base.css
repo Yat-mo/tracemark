@@ -21,10 +21,11 @@ body {
     'Noto Sans TC',
     'Microsoft JhengHei',
     sans-serif;
+  font-optical-sizing: auto;
   background: var(--bg);
   color: var(--label-primary);
-  line-height: 1.5;
-  letter-spacing: 0;
+  line-height: 1.47;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -54,8 +55,8 @@ h2,
 h3 {
   margin: 0;
   font-weight: 650;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
 }
 
 p {
@@ -69,27 +70,29 @@ pre {
 
 .app-shell {
   min-height: 100vh;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
-    radial-gradient(900px 420px at 100% 0%, color-mix(in srgb, var(--chart-2-border) 10%, transparent), transparent 55%),
-    var(--bg);
+  /* Solid system background — no marketing brand wash */
+  background: var(--bg);
 }
 
 .app-content {
-  width: min(100% - 32px, var(--content-max));
+  width: min(100% - 40px, var(--content-max));
   margin: 0 auto;
-  padding: calc(var(--toolbar-height) + 28px) 0 64px;
+  padding: calc(var(--toolbar-height) + 32px) 0 72px;
 }
 
 .page-title {
-  font-size: clamp(1.5rem, 2vw, 1.85rem);
+  font-size: clamp(1.55rem, 2.1vw, 1.9rem);
+  letter-spacing: -0.03em;
   margin-bottom: 6px;
 }
 
 .page-subtitle {
   color: var(--label-secondary);
-  font-size: 0.98rem;
+  font-size: 0.94rem;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
   margin-bottom: var(--space-5);
+  max-width: 42rem;
 }
 
 .stack {
@@ -101,7 +104,7 @@ pre {
 .row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 @media (max-width: 720px) {
@@ -110,7 +113,7 @@ pre {
   }
   .app-content {
     width: min(100% - 20px, var(--content-max));
-    padding-top: calc(var(--toolbar-height) + 18px);
+    padding-top: calc(var(--toolbar-height) + 20px);
   }
 }
 
@@ -122,5 +125,13 @@ pre {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .segmented-thumb {
+    transition: none !important;
+  }
+
+  .modal-card {
+    transform: none !important;
   }
 }

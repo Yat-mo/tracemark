@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Button } from '../components/Button'
+import { EmptyState, EmptyStateActionButton } from '../components/EmptyState'
 import { GroupedSection } from '../components/GroupedSection'
 import { StatusBanner } from '../components/StatusBanner'
 import { buildExportPack, downloadJson, isValidBaseline, normalizeImportedBaselines } from '../lib/packs'
@@ -150,8 +151,9 @@ export function BaselinesView({
             }}
           />
         </div>
-        <p className="hint" style={{ color: 'var(--label-tertiary)', fontSize: '0.85rem' }}>
-          支援匯入：基準陣列 / 單基準 / `hlwy-baseline-pack/v1` 包。預置包來自本機 `baselines/official/`。
+        <p className="hint" style={{ color: 'var(--label-tertiary)', fontSize: '0.82rem', lineHeight: 1.45 }}>
+          支援匯入基準陣列、單基準，或 <code>hlwy-baseline-pack/v1</code> 包。預置包來自本機{' '}
+          <code>baselines/official/</code>。
         </p>
       </GroupedSection>
 
@@ -159,7 +161,19 @@ export function BaselinesView({
 
       <GroupedSection title="已保存基準">
         {!baselines.length ? (
-          <div className="empty-state">暫無基準資料，請先進行標定或匯入。</div>
+          <EmptyState
+            icon="◇"
+            title="尚無基準"
+            text="先標定官方指紋，或匯入 / 載入預置基準包，之後才能做測試識別與渠道橫評。"
+            actions={
+              <>
+                <EmptyStateActionButton primary onClick={() => fileRef.current?.click()}>
+                  匯入基準
+                </EmptyStateActionButton>
+                <EmptyStateActionButton onClick={() => void loadOfficial()}>載入預置包</EmptyStateActionButton>
+              </>
+            }
+          />
         ) : (
           <div className="stack">
             {baselines.map((b, index) => (
@@ -232,17 +246,15 @@ API: ${detail.apiType || '—'}
         <div className="modal-backdrop" onClick={() => setRenameIndex(null)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <h3>重新命名基準</h3>
-            <input
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              style={{
-                width: '100%',
-                borderRadius: 12,
-                border: '1px solid var(--separator)',
-                background: 'var(--fill-control)',
-                padding: '11px 12px',
-              }}
-            />
+            <div className="field">
+              <label htmlFor="baseline-rename-input">基準名稱</label>
+              <input
+                id="baseline-rename-input"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                autoFocus
+              />
+            </div>
             <div className="btn-row">
               <Button onClick={commitRename}>儲存</Button>
               <Button variant="secondary" onClick={() => setRenameIndex(null)}>

@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+
 export type TabId = 'calibrate' | 'test' | 'baselines' | 'compare'
 
 const TABS: { id: TabId; label: string }[] = [
@@ -14,8 +16,15 @@ export function SegmentedControl({
   value: TabId
   onChange: (id: TabId) => void
 }) {
+  const index = Math.max(0, TABS.findIndex((t) => t.id === value))
+  const style = {
+    '--seg-count': TABS.length,
+    '--seg-index': index,
+  } as CSSProperties
+
   return (
-    <div className="segmented" role="tablist" aria-label="主要功能">
+    <div className="segmented" role="tablist" aria-label="主要功能" style={style}>
+      <div className="segmented-thumb" aria-hidden="true" />
       {TABS.map((tab) => (
         <button
           key={tab.id}
