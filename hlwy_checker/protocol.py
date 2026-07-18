@@ -1,6 +1,6 @@
 """Probe protocol, parsing, distribution stats, and similarity scoring.
 
-Mirrors the frontend protocol in hlwy-ai-checker.html (v2.3+/2.4).
+Mirrors the Web UI probe protocol (v2.3+/2.4).
 """
 
 from __future__ import annotations

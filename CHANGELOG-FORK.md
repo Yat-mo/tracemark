@@ -16,7 +16,7 @@ Inspired by: https://github.com/hanlinwenyuan/hlwy-ai-checker
 - Light/dark theme follows system, with manual override
 - Domain logic extracted to pure modules with Vitest coverage
 - `start.py` serves `web/dist` static assets + existing proxy/baselines/health
-- Legacy `hlwy-ai-checker.html` remains as fallback only when `web/dist` is missing
+- Removed legacy single-file UI (`hlwy-ai-checker.html`); missing build shows an actionable help page
 - Protocol, scoring, packs, and proxy contracts unchanged from v2.4
 
 ### Build

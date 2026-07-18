@@ -86,7 +86,6 @@
 │   │   ├── lib/             # 探針、評分、pack 等純邏輯（Vitest）
 │   │   └── styles/          # tokens / materials / base
 │   └── dist/                # npm run build 產物（需建置，預設不提交）
-├── hlwy-ai-checker.html     # 舊版單檔 UI（僅在未建置 web/dist 時後援）
 ├── hlwy_check.py            # CLI 入口
 ├── hlwy_checker/            # 協議、客戶端、評分、基準包
 ├── baselines/official/      # 預置 / 匯出基準包
@@ -137,7 +136,7 @@ Web UI 四個工作流（頂部分段切換）：
 | **基準管理** | 匯入 / 匯出 / 載入預置 pack、重新命名 |
 | **渠道橫評** | 多渠道並行，依匹配度排名 |
 
-> `start.py` 會優先服務 `web/dist`。若尚未建置前端，會回退到舊版 `hlwy-ai-checker.html` 或顯示建置說明。  
+> `start.py` 只服務 `web/dist`。若尚未建置前端，會顯示建置說明頁。  
 > 協議、探針套件、評分與 proxy 契約不變；v2.5 只重做 Web 呈現層。
 
 開發模式（可選）：
@@ -356,7 +355,6 @@ Use it when you want to know:
 │   │   ├── lib/             # probes, scoring, packs (Vitest)
 │   │   └── styles/          # tokens / materials / base
 │   └── dist/                # npm run build output (build required; not committed by default)
-├── hlwy-ai-checker.html     # legacy single-file UI (fallback only)
 ├── hlwy_check.py            # CLI entry
 ├── hlwy_checker/            # protocol, client, scoring, packs
 ├── baselines/official/      # preset / exported packs
@@ -402,7 +400,7 @@ Four segmented workflows:
 | **Baselines** | Import / export / load preset packs, rename |
 | **Compare** | Rank multiple channels by match score |
 
-`start.py` prefers `web/dist`. If the frontend is not built, it falls back to legacy `hlwy-ai-checker.html` or shows build instructions.  
+`start.py` serves only `web/dist`. If the frontend is not built, it shows a build-instructions page.  
 Protocol, probe suites, scoring, and proxy contracts are unchanged in v2.5 — only the presentation layer was rebuilt.
 
 Dev mode (optional):

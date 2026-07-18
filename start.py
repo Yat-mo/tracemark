@@ -237,9 +237,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
     def _web_dist_dir(self) -> str:
         return os.path.join(CONFIG['root_dir'], 'web', 'dist')
 
-    def _legacy_html_path(self) -> str:
-        return os.path.join(CONFIG['root_dir'], 'hlwy-ai-checker.html')
-
     def _baselines_root(self) -> str:
         return os.path.join(CONFIG['root_dir'], 'baselines')
 
@@ -309,13 +306,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
         """Serve Vite build output with SPA fallback to index.html."""
         dist = self._web_dist_dir()
         if not os.path.isdir(dist):
-            # Migration fallback: legacy single-file UI if still present.
-            legacy = self._legacy_html_path()
-            if os.path.isfile(legacy) and url_path in ('/', '/index.html'):
-                with open(legacy, 'rb') as f:
-                    body = f.read()
-                self._send_bytes(200, body, 'text/html; charset=utf-8')
-                return
             self._send_bytes(503, self._missing_web_ui_page(), 'text/html; charset=utf-8')
             return
 
@@ -522,9 +512,8 @@ def main(argv=None):
 
     root_dir = os.path.dirname(os.path.abspath(__file__))
     dist_dir = os.path.join(root_dir, 'web', 'dist')
-    legacy_html = os.path.join(root_dir, 'hlwy-ai-checker.html')
-    if not os.path.isdir(dist_dir) and not os.path.isfile(legacy_html):
-        print('错误: 找不到 Web UI 建置产物 web/dist，也没有旧版 hlwy-ai-checker.html')
+    if not os.path.isdir(dist_dir):
+        print('错误: 找不到 Web UI 建置产物 web/dist')
         print('请先执行: cd web && npm ci && npm run build')
         print(f'期望路径: {dist_dir}')
         return 1
@@ -540,7 +529,6 @@ def main(argv=None):
     server = ThreadingHTTPServer((host, port), ProxyHandler)
     url = f'http://{host}:{port}'
     allow_desc = 'any public host' if CONFIG['allow_any_public'] else ', '.join(sorted(CONFIG['allow_hosts']))
-    ui_src = 'web/dist' if os.path.isdir(dist_dir) else 'legacy hlwy-ai-checker.html'
     print(f"""
 ╔════════════════════════════════════════════════════════╗
 ║           TraceMark v{VERSION}  ·  模型行為指紋探測           ║
@@ -548,7 +536,7 @@ def main(argv=None):
 repo: https://github.com/Yat-mo/tracemark
 
 🌐 UI:      {url}
-📦 source:  {ui_src}
+📦 source:  web/dist
 🔒 bind:    {host}:{port}
 🛡️  targets: {allow_desc}
 ⏱  timeout: {CONFIG['timeout']}s
