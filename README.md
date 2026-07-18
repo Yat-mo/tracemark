@@ -105,7 +105,6 @@
 ```bash
 git clone https://github.com/Yat-mo/tracemark.git
 cd tracemark
-git checkout improve/v2.3-hardening
 python3 -m pip install -r requirements.txt
 
 # Web UI（需要 Node.js 18+）
@@ -374,7 +373,6 @@ Use it when you want to know:
 ```bash
 git clone https://github.com/Yat-mo/tracemark.git
 cd tracemark
-git checkout improve/v2.3-hardening
 python3 -m pip install -r requirements.txt
 
 # Web UI (Node.js 18+)
@@ -573,7 +571,7 @@ Methodologically inspired by [hanlinwenyuan/hlwy-ai-checker](https://github.com/
 | --- | --- |
 | Product | **TraceMark** |
 | Version | `2.5.0` |
-| Branch | `improve/v2.3-hardening` |
+| Branch | `main` |
 | Repo | [Yat-mo/tracemark](https://github.com/Yat-mo/tracemark) |
 | Docs | [Changelog](./CHANGELOG-FORK.md) · [Baseline packs](./baselines/README.md) |
 
