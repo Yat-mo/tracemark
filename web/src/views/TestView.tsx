@@ -200,7 +200,7 @@ export function TestView({ baselines }: { baselines: Baseline[] }) {
           </SelectInput>
         </Field>
         <div className="row">
-          <Field label="測試次數（50–500）">
+          <Field label="測試次數">
             <TextInput
               type="number"
               min={50}
@@ -209,7 +209,7 @@ export function TestView({ baselines }: { baselines: Baseline[] }) {
               onChange={(e) => setIterations(parseInt(e.target.value || '0', 10))}
             />
           </Field>
-          <Field label="併發數（1–50）">
+          <Field label="併發數">
             <TextInput
               type="number"
               min={1}
@@ -233,7 +233,9 @@ export function TestView({ baselines }: { baselines: Baseline[] }) {
 
       {(running || progress > 0) && (
         <GroupedSection title="進度">
-          <ProgressBar value={progress} detail={progressDetail} />
+          <div className="hint-row" style={{ paddingTop: 14, paddingBottom: 14 }}>
+            <ProgressBar value={progress} detail={progressDetail} />
+          </div>
         </GroupedSection>
       )}
 

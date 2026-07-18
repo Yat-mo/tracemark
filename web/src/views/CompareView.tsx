@@ -225,7 +225,7 @@ export function CompareView({ baselines }: { baselines: Baseline[] }) {
       </div>
 
       <GroupedSection title="基準與探測">
-        <Field label="選擇官方基準">
+        <Field label="官方基準">
           <SelectInput
             value={baselines.length ? String(baselineIndex) : ''}
             onChange={(e) => setBaselineIndex(parseInt(e.target.value || '0', 10))}
@@ -248,7 +248,7 @@ export function CompareView({ baselines }: { baselines: Baseline[] }) {
           </SelectInput>
         </Field>
         <div className="row">
-          <Field label="每渠道測試次數（50–500）">
+          <Field label="測試次數">
             <TextInput
               type="number"
               min={50}
@@ -257,7 +257,7 @@ export function CompareView({ baselines }: { baselines: Baseline[] }) {
               onChange={(e) => setIterations(Math.max(50, Math.min(500, parseInt(e.target.value || '200', 10))))}
             />
           </Field>
-          <Field label="每渠道併發數（1–50）">
+          <Field label="併發數">
             <TextInput
               type="number"
               min={1}
@@ -270,77 +270,76 @@ export function CompareView({ baselines }: { baselines: Baseline[] }) {
       </GroupedSection>
 
       <GroupedSection title="渠道配置">
-        <div className="stack">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 0 }}>
           {channels.map((ch, idx) => (
-            <div className="channel-card" key={ch.id}>
-              <div className="channel-card-header">
-                <div className="channel-title">#{idx + 1} 渠道配置</div>
+            <div className="channel-card" key={ch.id} style={{ boxShadow: 'none', borderRadius: 0, padding: 0 }}>
+              <div className="channel-card-header" style={{ padding: '12px 16px 0' }}>
+                <div className="channel-title">#{idx + 1} 渠道</div>
                 <Button size="sm" variant="danger" onClick={() => removeChannel(ch.id)} disabled={running}>
                   刪除
                 </Button>
               </div>
-              <Field label="渠道名稱">
+              <Field label="名稱">
                 <TextInput value={ch.name} onChange={(e) => updateChannel(ch.id, { name: e.target.value })} />
               </Field>
-              <div className="row">
-                <Field label="API 類型">
-                  <SelectInput
-                    value={ch.apiType}
-                    onChange={(e) => updateChannel(ch.id, { apiType: e.target.value as ApiType })}
-                  >
-                    <option value="openai">OpenAI 相容格式</option>
-                    <option value="openai-responses">OpenAI Responses API</option>
-                    <option value="anthropic">Anthropic Claude API</option>
-                  </SelectInput>
-                </Field>
-                <Field label="請求頭偽裝">
-                  <SelectInput
-                    value={ch.headerPreset}
-                    onChange={(e) => updateChannel(ch.id, { headerPreset: e.target.value as HeaderPreset })}
-                  >
-                    <option value="default">預設</option>
-                    <option value="claude-code">Claude Code</option>
-                    <option value="codex">Codex CLI</option>
-                  </SelectInput>
-                </Field>
-              </div>
-              <div className="row">
-                <Field label="Base URL">
-                  <TextInput
-                    value={ch.baseUrl}
-                    onChange={(e) => updateChannel(ch.id, { baseUrl: e.target.value })}
-                    placeholder="https://api.openai.com/v1"
-                  />
-                </Field>
-                <Field label="API Key">
-                  <TextInput
-                    type="password"
-                    value={ch.apiKey}
-                    onChange={(e) => updateChannel(ch.id, { apiKey: e.target.value })}
-                    placeholder="sk-..."
-                    autoComplete="off"
-                  />
-                </Field>
-              </div>
-              <Field label="模型名稱">
+              <Field label="API 類型">
+                <SelectInput
+                  value={ch.apiType}
+                  onChange={(e) => updateChannel(ch.id, { apiType: e.target.value as ApiType })}
+                >
+                  <option value="openai">OpenAI 相容格式</option>
+                  <option value="openai-responses">OpenAI Responses API</option>
+                  <option value="anthropic">Anthropic Claude API</option>
+                </SelectInput>
+              </Field>
+              <Field label="請求頭">
+                <SelectInput
+                  value={ch.headerPreset}
+                  onChange={(e) => updateChannel(ch.id, { headerPreset: e.target.value as HeaderPreset })}
+                >
+                  <option value="default">預設</option>
+                  <option value="claude-code">Claude Code</option>
+                  <option value="codex">Codex CLI</option>
+                </SelectInput>
+              </Field>
+              <Field label="Base URL">
+                <TextInput
+                  value={ch.baseUrl}
+                  onChange={(e) => updateChannel(ch.id, { baseUrl: e.target.value })}
+                  placeholder="https://api.openai.com/v1"
+                />
+              </Field>
+              <Field label="API Key">
+                <TextInput
+                  type="password"
+                  value={ch.apiKey}
+                  onChange={(e) => updateChannel(ch.id, { apiKey: e.target.value })}
+                  placeholder="sk-..."
+                  autoComplete="off"
+                />
+              </Field>
+              <Field label="模型">
                 <TextInput value={ch.model} onChange={(e) => updateChannel(ch.id, { model: e.target.value })} />
               </Field>
               {channelProgress[ch.id] ? (
-                <div className="stack" style={{ gap: 6 }}>
+                <div className="hint-row" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div className="progress">
                     <span style={{ width: `${channelProgress[ch.id].pct}%` }} />
                   </div>
-                  <div style={{ color: 'var(--label-secondary)', fontSize: '0.86rem' }}>
+                  <div style={{ color: 'var(--label-secondary)', fontSize: '0.82rem' }}>
                     {channelProgress[ch.id].text}
                   </div>
                 </div>
+              ) : null}
+              {idx < channels.length - 1 ? (
+                <div style={{ height: 0.5, background: 'var(--separator-hairline)', margin: '4px 0' }} />
               ) : null}
             </div>
           ))}
         </div>
         <div className="btn-row">
           <Button variant="secondary" onClick={addChannel} disabled={running}>
-            + 添加渠道
+            添加渠道
           </Button>
           <Button onClick={start} disabled={running}>
             {running ? '橫評中…' : '開始橫評'}

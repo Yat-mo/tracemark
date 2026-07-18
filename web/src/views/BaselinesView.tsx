@@ -128,7 +128,10 @@ export function BaselinesView({
         <p className="page-subtitle">檢視、匯入、匯出與管理本地行為指紋。</p>
       </div>
 
-      <GroupedSection title="操作">
+      <GroupedSection
+        title="操作"
+        footer="支援匯入基準陣列、單基準，或 hlwy-baseline-pack/v1 包。預置包來自本機 baselines/official/。"
+      >
         <div className="btn-row">
           <Button variant="secondary" onClick={exportAll}>
             匯出全部
@@ -151,10 +154,6 @@ export function BaselinesView({
             }}
           />
         </div>
-        <p className="hint" style={{ color: 'var(--label-tertiary)', fontSize: '0.82rem', lineHeight: 1.45 }}>
-          支援匯入基準陣列、單基準，或 <code>hlwy-baseline-pack/v1</code> 包。預置包來自本機{' '}
-          <code>baselines/official/</code>。
-        </p>
       </GroupedSection>
 
       {message ? <StatusBanner type={message.type}>{message.text}</StatusBanner> : null}
@@ -175,7 +174,7 @@ export function BaselinesView({
             }
           />
         ) : (
-          <div className="stack">
+          <div className="baseline-list">
             {baselines.map((b, index) => (
               <div className="baseline-item" key={`${b.name}-${index}`}>
                 <div className="baseline-item-top">
@@ -188,13 +187,13 @@ export function BaselinesView({
                       {b.stats.mean.toFixed(2)} · 標準差: {b.stats.stdDev.toFixed(2)} · 唯一值: {b.stats.unique}
                     </div>
                   </div>
-                  <div className="btn-row">
-                    <Button size="sm" variant="secondary" onClick={() => setDetail(b)}>
+                  <div className="btn-row" style={{ padding: 0 }}>
+                    <Button size="sm" variant="ghost" onClick={() => setDetail(b)}>
                       檢視
                     </Button>
                     <Button
                       size="sm"
-                      variant="secondary"
+                      variant="ghost"
                       onClick={() => {
                         setRenameIndex(index)
                         setRenameValue(b.name)
@@ -202,7 +201,7 @@ export function BaselinesView({
                     >
                       重新命名
                     </Button>
-                    <Button size="sm" variant="secondary" onClick={() => exportOne(index)}>
+                    <Button size="sm" variant="ghost" onClick={() => exportOne(index)}>
                       匯出
                     </Button>
                     <Button size="sm" variant="danger" onClick={() => remove(index)}>

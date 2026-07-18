@@ -39,43 +39,39 @@ export function ConnectionFields({
           <option value="anthropic">Anthropic Claude API</option>
         </SelectInput>
       </Field>
-      <div className="row">
-        <Field label="Base URL">
-          <TextInput
-            value={value.baseUrl}
-            onChange={(e) => set('baseUrl', e.target.value)}
-            placeholder={value.apiType === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1'}
-          />
-        </Field>
-        <Field label="API Key">
-          <TextInput
-            type="password"
-            value={value.apiKey}
-            onChange={(e) => set('apiKey', e.target.value)}
-            placeholder="sk-..."
-            autoComplete="off"
-          />
-        </Field>
-      </div>
-      <div className="row">
-        <Field label="模型名稱">
-          <TextInput
-            value={value.model}
-            onChange={(e) => set('model', e.target.value)}
-            placeholder={modelPlaceholder}
-          />
-        </Field>
-        <Field label="請求頭偽裝">
-          <SelectInput
-            value={value.headerPreset}
-            onChange={(e) => set('headerPreset', e.target.value as HeaderPreset)}
-          >
-            <option value="default">預設</option>
-            <option value="claude-code">Claude Code</option>
-            <option value="codex">Codex CLI</option>
-          </SelectInput>
-        </Field>
-      </div>
+      <Field label="Base URL">
+        <TextInput
+          value={value.baseUrl}
+          onChange={(e) => set('baseUrl', e.target.value)}
+          placeholder={value.apiType === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1'}
+        />
+      </Field>
+      <Field label="API Key">
+        <TextInput
+          type="password"
+          value={value.apiKey}
+          onChange={(e) => set('apiKey', e.target.value)}
+          placeholder="sk-..."
+          autoComplete="off"
+        />
+      </Field>
+      <Field label="模型">
+        <TextInput
+          value={value.model}
+          onChange={(e) => set('model', e.target.value)}
+          placeholder={modelPlaceholder}
+        />
+      </Field>
+      <Field label="請求頭">
+        <SelectInput
+          value={value.headerPreset}
+          onChange={(e) => set('headerPreset', e.target.value as HeaderPreset)}
+        >
+          <option value="default">預設</option>
+          <option value="claude-code">Claude Code</option>
+          <option value="codex">Codex CLI</option>
+        </SelectInput>
+      </Field>
     </>
   )
 }

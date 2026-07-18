@@ -179,19 +179,19 @@ export function CalibrateView({
         <p className="page-subtitle">對官方 API 建立行為指紋，供後續測試與橫評比對。</p>
       </div>
 
-      <GroupedSection title="連線設定" description="API 類型、端點與金鑰">
+      <GroupedSection title="連線設定">
         <ConnectionFields value={conn} onChange={setConn} />
       </GroupedSection>
 
-      <GroupedSection title="探測設定" description="同一套件的基準與測試才可比較">
-        <Field label="探針套件" hint="舊版基準僅相容「經典單探針」。">
+      <GroupedSection title="探測設定" footer="同一套件的基準與測試才可比較。舊版基準僅相容「經典單探針」。">
+        <Field label="探針套件">
           <SelectInput value={suiteId} onChange={(e) => setSuiteId(e.target.value as SuiteId)}>
             <option value="robust">穩健多探針（推薦）</option>
             <option value="classic">經典單探針（相容舊基準）</option>
           </SelectInput>
         </Field>
         <div className="row">
-          <Field label="測試次數（50–500）">
+          <Field label="測試次數">
             <TextInput
               type="number"
               min={50}
@@ -200,7 +200,7 @@ export function CalibrateView({
               onChange={(e) => setIterations(parseInt(e.target.value || '0', 10))}
             />
           </Field>
-          <Field label="併發數（1–50）">
+          <Field label="併發數">
             <TextInput
               type="number"
               min={1}
@@ -210,7 +210,7 @@ export function CalibrateView({
             />
           </Field>
         </div>
-        <Field label="基準名稱">
+        <Field label="基準名稱" stack>
           <TextInput
             value={baselineName}
             onChange={(e) => setBaselineName(e.target.value)}
@@ -231,7 +231,9 @@ export function CalibrateView({
 
       {(running || progress > 0) && (
         <GroupedSection title="進度">
-          <ProgressBar value={progress} detail={progressDetail} />
+          <div className="hint-row" style={{ paddingTop: 14, paddingBottom: 14 }}>
+            <ProgressBar value={progress} detail={progressDetail} />
+          </div>
         </GroupedSection>
       )}
 

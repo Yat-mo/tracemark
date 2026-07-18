@@ -9,7 +9,7 @@ export function ProgressBar({
 }) {
   const pct = Math.max(0, Math.min(100, value))
   return (
-    <div className="stack" style={{ gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div className="progress-meta">
         <span>{label || '進度'}</span>
         <span>
