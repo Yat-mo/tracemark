@@ -65,7 +65,8 @@
 
 | 面向 | 內容 |
 | --- | --- |
-| **Web UI** | 本機一頁式流程：標定、測試、基準管理、渠道橫評 |
+| **Web UI** | Apple Design 系統工具殼：半透明頂欄、分段導覽、Settings 式分組列表；標定 / 測試 / 基準 / 橫評 |
+| **主題** | 跟隨系統 light/dark，可手動覆寫；繁中主文 + 英文副標 |
 | **Headless CLI** | `calibrate` / `test` / `compare`，可進腳本與 CI |
 | **多探針協議** | `classic` 相容舊基準；`robust` 多探針更穩 |
 | **嚴格解析** | 只接受純整數輸出，減少髒樣本污染 |
@@ -77,15 +78,19 @@
 
 ```text
 .
-├── start.py                 # Web UI static server + 本機安全代理
-├── web/                     # Vite + React Web UI（Apple Design）
+├── start.py                 # 服務 web/dist + 本機安全代理（/health、/baselines/*）
+├── web/                     # Vite + React + TypeScript（Apple Design Web UI）
 │   ├── src/
-│   └── dist/                # npm run build 產物（需建置）
+│   │   ├── components/      # Toolbar、SegmentedControl、GroupedSection…
+│   │   ├── views/           # 標定 / 測試 / 基準 / 橫評
+│   │   ├── lib/             # 探針、評分、pack 等純邏輯（Vitest）
+│   │   └── styles/          # tokens / materials / base
+│   └── dist/                # npm run build 產物（需建置，預設不提交）
 ├── hlwy-ai-checker.html     # 舊版單檔 UI（僅在未建置 web/dist 時後援）
 ├── hlwy_check.py            # CLI 入口
 ├── hlwy_checker/            # 協議、客戶端、評分、基準包
 ├── baselines/official/      # 預置 / 匯出基準包
-├── tests/                   # 單元測試
+├── tests/                   # Python 單元測試
 ├── requirements.txt
 └── CHANGELOG-FORK.md
 ```
@@ -123,15 +128,25 @@ python3 start.py --no-open
 http://127.0.0.1:8000
 ```
 
-> `start.py` 會優先服務 `web/dist`。若尚未建置前端，會回退到舊版 `hlwy-ai-checker.html` 或顯示建置說明。
+Web UI 四個工作流（頂部分段切換）：
+
+| 分頁 | 用途 |
+| --- | --- |
+| **標定基準** | 對官方 API 建立行為指紋 |
+| **測試識別** | 用現有基準比對單一渠道 |
+| **基準管理** | 匯入 / 匯出 / 載入預置 pack、重新命名 |
+| **渠道橫評** | 多渠道並行，依匹配度排名 |
+
+> `start.py` 會優先服務 `web/dist`。若尚未建置前端，會回退到舊版 `hlwy-ai-checker.html` 或顯示建置說明。  
+> 協議、探針套件、評分與 proxy 契約不變；v2.5 只重做 Web 呈現層。
 
 開發模式（可選）：
 
 ```bash
-# 終端 1：代理
+# 終端 1：代理 + 靜態（或僅當 API 後端）
 python3 start.py --no-open
 
-# 終端 2：前端 HMR（會 proxy API 到 8000）
+# 終端 2：前端 HMR（Vite 會 proxy /chat /messages /responses /health 到 8000）
 cd web && npm run dev
 ```
 
@@ -273,8 +288,14 @@ many samples ──► number distribution
 ### 開發
 
 ```bash
+# Python 協議 / 代理 / CLI
 python3 -m unittest discover -s tests -v
 python3 hlwy_check.py gen-demo-packs
+
+# Web 前端（domain 純邏輯 + 建置）
+cd web
+npm test
+npm run build
 ```
 
 ### 免責聲明
@@ -314,7 +335,8 @@ Use it when you want to know:
 
 | Area | What you get |
 | --- | --- |
-| **Web UI** | Local one-page flow for calibrate / test / baseline management / multi-channel ranking |
+| **Web UI** | Apple Design system-tool shell: translucent toolbar, segmented nav, Settings-style grouped lists; calibrate / test / baselines / compare |
+| **Theme** | System light/dark with manual override; zh-Hant primary + English subtitles |
 | **Headless CLI** | `calibrate`, `test`, `compare` for scripts and automation |
 | **Probe suites** | `classic` for legacy baselines; `robust` multi-probe suite by default |
 | **Strict parsing** | Accepts pure integers only, reducing contaminated samples |
@@ -326,15 +348,19 @@ Use it when you want to know:
 
 ```text
 .
-├── start.py                 # static server + hardened local proxy
-├── web/                     # Vite + React Web UI (Apple Design)
+├── start.py                 # serves web/dist + hardened proxy (/health, /baselines/*)
+├── web/                     # Vite + React + TypeScript (Apple Design Web UI)
 │   ├── src/
-│   └── dist/                # build output from npm run build
+│   │   ├── components/      # Toolbar, SegmentedControl, GroupedSection…
+│   │   ├── views/           # Calibrate / Test / Baselines / Compare
+│   │   ├── lib/             # probes, scoring, packs (Vitest)
+│   │   └── styles/          # tokens / materials / base
+│   └── dist/                # npm run build output (build required; not committed by default)
 ├── hlwy-ai-checker.html     # legacy single-file UI (fallback only)
 ├── hlwy_check.py            # CLI entry
 ├── hlwy_checker/            # protocol, client, scoring, packs
 ├── baselines/official/      # preset / exported packs
-├── tests/
+├── tests/                   # Python unit tests
 ├── requirements.txt
 └── CHANGELOG-FORK.md
 ```
@@ -367,15 +393,25 @@ python3 start.py --no-open
 # open http://127.0.0.1:8000
 ```
 
-`start.py` prefers `web/dist`. If the frontend is not built, it falls back to legacy `hlwy-ai-checker.html` or shows build instructions.
+Four segmented workflows:
+
+| Tab | Purpose |
+| --- | --- |
+| **Calibrate** | Build a fingerprint against an official API |
+| **Test** | Compare one channel against a saved baseline |
+| **Baselines** | Import / export / load preset packs, rename |
+| **Compare** | Rank multiple channels by match score |
+
+`start.py` prefers `web/dist`. If the frontend is not built, it falls back to legacy `hlwy-ai-checker.html` or shows build instructions.  
+Protocol, probe suites, scoring, and proxy contracts are unchanged in v2.5 — only the presentation layer was rebuilt.
 
 Dev mode (optional):
 
 ```bash
-# terminal 1
+# terminal 1 — proxy + static (or API backend only)
 python3 start.py --no-open
 
-# terminal 2
+# terminal 2 — Vite HMR (proxies /chat /messages /responses /health to :8000)
 cd web && npm run dev
 ```
 
@@ -509,8 +545,14 @@ The question is whether the **shape of behavior** matches.
 ### Development
 
 ```bash
+# Python protocol / proxy / CLI
 python3 -m unittest discover -s tests -v
 python3 hlwy_check.py gen-demo-packs
+
+# Web frontend (domain unit tests + production build)
+cd web
+npm test
+npm run build
 ```
 
 ### Disclaimer
@@ -532,7 +574,7 @@ Methodologically inspired by [hanlinwenyuan/hlwy-ai-checker](https://github.com/
 | Item | Value |
 | --- | --- |
 | Product | **TraceMark** |
-| Version | `2.4.0` |
+| Version | `2.5.0` |
 | Branch | `improve/v2.3-hardening` |
 | Repo | [Yat-mo/tracemark](https://github.com/Yat-mo/tracemark) |
 | Docs | [Changelog](./CHANGELOG-FORK.md) · [Baseline packs](./baselines/README.md) |

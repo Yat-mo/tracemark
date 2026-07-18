@@ -7,12 +7,17 @@ Inspired by: https://github.com/hanlinwenyuan/hlwy-ai-checker
 
 ### Web
 - Rebuild front end as Vite + React + TypeScript under `web/`
-- System-tool shell: translucent toolbar, segmented control, grouped sections
+- System-tool shell (Apple Design / Settings-like):
+  - translucent top chrome with scroll-edge fade
+  - continuous segmented control for the four workflows
+  - Settings-style grouped list rows (label left / value right)
+  - spacing + material elevation only (no hairline row separators)
 - Traditional Chinese primary UI + English subtitles
 - Light/dark theme follows system, with manual override
 - Domain logic extracted to pure modules with Vitest coverage
 - `start.py` serves `web/dist` static assets + existing proxy/baselines/health
 - Legacy `hlwy-ai-checker.html` remains as fallback only when `web/dist` is missing
+- Protocol, scoring, packs, and proxy contracts unchanged from v2.4
 
 ### Build
 ```bash
